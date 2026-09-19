@@ -106,7 +106,6 @@ Taskora/
 
 ├── app.py
 
-├── taskora.db
 
 ├── requirements.txt
 
