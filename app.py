@@ -1,8 +1,10 @@
 import os
 import sqlite3
 from datetime import datetime
+from urllib import request as urllib_request, error as urllib_error
+from xml.sax.saxutils import escape as xml_escape
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, Response
 
 try:
     import psycopg
@@ -18,6 +20,20 @@ DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 IS_VERCEL = bool(os.getenv("VERCEL"))
 
 LOCAL_DB = "/tmp/taskora.db" if IS_VERCEL else "taskora.db"
+
+SPEECH_KEY = os.getenv("SPEECH_KEY", "").strip()
+SPEECH_REGION = os.getenv("SPEECH_REGION", "").strip()
+
+AZURE_VOICES = {
+    "en": {
+        "name": "en-GB-RyanNeural",
+        "locale": "en-GB",
+    },
+    "ar": {
+        "name": "ar-AE-HamdanNeural",
+        "locale": "ar-AE",
+    },
+}
 
 _db_initialized = False
 
@@ -260,6 +276,141 @@ def home():
     return render_template(
         "index.html"
     )
+
+
+
+# =========================================================
+# AZURE TEXT TO SPEECH
+# Exact voices only:
+# English -> en-GB-RyanNeural
+# Arabic  -> ar-AE-HamdanNeural
+# =========================================================
+
+@app.route(
+    "/api/tts",
+    methods=["POST"]
+)
+def text_to_speech():
+    if not SPEECH_KEY or not SPEECH_REGION:
+        return jsonify({
+            "error":
+                "Azure Speech is not configured on the server"
+        }), 503
+
+    data = request.get_json(
+        silent=True
+    ) or {}
+
+    text_value = str(
+        data.get(
+            "text",
+            ""
+        )
+    ).strip()
+
+    language = (
+        "ar"
+        if data.get("language") == "ar"
+        else "en"
+    )
+
+    if not text_value:
+        return jsonify({
+            "error":
+                "Text is required"
+        }), 400
+
+    if len(text_value) > 2000:
+        return jsonify({
+            "error":
+                "Text is too long"
+        }), 400
+
+    voice = AZURE_VOICES[
+        language
+    ]
+
+    safe_text = xml_escape(
+        text_value
+    )
+
+    ssml = f"""<speak version="1.0" xml:lang="{voice['locale']}">
+    <voice name="{voice['name']}">
+        {safe_text}
+    </voice>
+</speak>"""
+
+    endpoint = (
+        f"https://{SPEECH_REGION}."
+        "tts.speech.microsoft.com/"
+        "cognitiveservices/v1"
+    )
+
+    azure_request = urllib_request.Request(
+        endpoint,
+        data=ssml.encode(
+            "utf-8"
+        ),
+        headers={
+            "Ocp-Apim-Subscription-Key":
+                SPEECH_KEY,
+
+            "Content-Type":
+                "application/ssml+xml",
+
+            "X-Microsoft-OutputFormat":
+                "audio-16khz-128kbitrate-mono-mp3",
+
+            "User-Agent":
+                "Taskora"
+        },
+        method="POST"
+    )
+
+    try:
+        with urllib_request.urlopen(
+            azure_request,
+            timeout=25
+        ) as azure_response:
+            audio_data = (
+                azure_response.read()
+            )
+
+    except urllib_error.HTTPError as exc:
+        app.logger.exception(
+            "Azure Speech HTTP error: %s",
+            exc.code
+        )
+
+        return jsonify({
+            "error":
+                "Unable to generate voice"
+        }), 502
+
+    except Exception:
+        app.logger.exception(
+            "Azure Speech request failed"
+        )
+
+        return jsonify({
+            "error":
+                "Unable to generate voice"
+        }), 502
+
+    response = Response(
+        audio_data,
+        mimetype="audio/mpeg"
+    )
+
+    response.headers[
+        "Cache-Control"
+    ] = "no-store"
+
+    response.headers[
+        "X-Taskora-Voice"
+    ] = voice["name"]
+
+    return response
 
 
 @app.route(
