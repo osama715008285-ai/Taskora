@@ -27,91 +27,313 @@ let currentFilter = "all";
 let editingTaskId = null;
 let availableVoices = [];
 
+/* =========================================================
+   HELPERS
+========================================================= */
 
-/* ========================= MODAL ========================= */
+function setText(id, value) {
+    const el = document.getElementById(id);
+
+    if (el) {
+        el.textContent = value;
+    }
+}
+
+function escapeHTML(value) {
+    const div = document.createElement("div");
+
+    div.textContent =
+        String(
+            value ?? ""
+        );
+
+    return div.innerHTML;
+}
+
+function startOfToday() {
+    const now =
+        new Date();
+
+    return new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+    );
+}
+
+function parseTaskDate(value) {
+    const [
+        year,
+        month,
+        day
+    ] =
+        String(value)
+            .split("-")
+            .map(Number);
+
+    return new Date(
+        year,
+        month - 1,
+        day
+    );
+}
+
+function formatDate(value) {
+    return parseTaskDate(
+        value
+    )
+        .toLocaleDateString(
+            "en-US",
+            {
+                month: "short",
+                day: "numeric",
+                year: "numeric"
+            }
+        );
+}
+
+function getDeadlineStatus(value) {
+    const date =
+        parseTaskDate(
+            value
+        );
+
+    const today =
+        startOfToday();
+
+    if (
+        date <
+        today
+    ) {
+        return {
+            text: "Overdue",
+            className:
+                "deadline-overdue"
+        };
+    }
+
+    if (
+        date.getTime() ===
+        today.getTime()
+    ) {
+        return {
+            text: "Due Today",
+            className:
+                "deadline-today"
+        };
+    }
+
+    return null;
+}
+
+
+/* =========================================================
+   TOAST
+========================================================= */
+
+function showToast(
+    message,
+    type = "success"
+) {
+    let container =
+        document.querySelector(
+            ".toast-container"
+        );
+
+    if (!container) {
+        container =
+            document.createElement(
+                "div"
+            );
+
+        container.className =
+            "toast-container";
+
+        document.body.appendChild(
+            container
+        );
+    }
+
+    const icons = {
+        success: "✓",
+        error: "×",
+        warning: "!",
+        info: "i"
+    };
+
+    const toast =
+        document.createElement(
+            "div"
+        );
+
+    toast.className =
+        `toast ${type}`;
+
+    toast.innerHTML = `
+        <div class="toast-icon">
+            ${icons[type] || "i"}
+        </div>
+
+        <div class="toast-message">
+            ${escapeHTML(message)}
+        </div>
+    `;
+
+    container.appendChild(
+        toast
+    );
+
+    setTimeout(
+        () => {
+
+            toast.classList.add(
+                "hide"
+            );
+
+            setTimeout(
+                () =>
+                    toast.remove(),
+                300
+            );
+
+        },
+        3200
+    );
+}
+
+
+/* =========================================================
+   MODAL
+========================================================= */
 
 function openTaskModal() {
 
-    editingTaskId = null;
+    editingTaskId =
+        null;
 
     taskForm.reset();
 
-    document.getElementById("importance").value = "3";
-    document.getElementById("difficulty").value = "3";
-    document.getElementById("hours").value = "1";
+    document
+        .getElementById(
+            "importance"
+        )
+        .value =
+        "3";
 
-    setReminderFormValues({
-        mode: "smart",
-        time: "18:00",
-        customDays: 2,
-        voiceEnabled: true,
-        language: "en",
-        voiceStyle: "premium"
-    });
+    document
+        .getElementById(
+            "difficulty"
+        )
+        .value =
+        "3";
 
-    document.querySelector(
-        ".modal-header h2"
-    ).textContent = "Add Academic Task";
+    document
+        .getElementById(
+            "hours"
+        )
+        .value =
+        "1";
 
-    document.querySelector(
-        ".modal-header p"
-    ).textContent = "NEW TASK";
+    setReminderFormValues(
+        {
+            mode:
+                "smart",
 
-    document.querySelector(
-        ".create-task-btn"
-    ).textContent = "Create Task";
+            time:
+                "18:00",
 
-    modal.classList.add("show");
+            customDays:
+                2,
+
+            voiceEnabled:
+                true,
+
+            language:
+                "en",
+
+            voiceStyle:
+                "premium"
+        }
+    );
+
+    document
+        .querySelector(
+            ".modal-header h2"
+        )
+        .textContent =
+        "Add Academic Task";
+
+    document
+        .querySelector(
+            ".modal-header p"
+        )
+        .textContent =
+        "NEW TASK";
+
+    document
+        .querySelector(
+            ".create-task-btn"
+        )
+        .textContent =
+        "Create Task";
+
+    modal.classList.add(
+        "show"
+    );
 }
-
 
 function closeTaskModal() {
 
-    modal.classList.remove("show");
+    modal.classList.remove(
+        "show"
+    );
 
-    editingTaskId = null;
+    editingTaskId =
+        null;
 }
-
 
 window.addEventListener(
     "click",
     (event) => {
 
         if (
-            event.target === modal
+            event.target ===
+            modal
         ) {
-
             closeTaskModal();
         }
     }
 );
-
 
 document.addEventListener(
     "keydown",
     (event) => {
 
         if (
-            event.key === "Escape" &&
+            event.key ===
+                "Escape"
+
+            &&
+
             !document.querySelector(
                 ".taskora-confirm-overlay"
             )
         ) {
-
             closeTaskModal();
         }
     }
 );
 
 
-/* ========================= SAVE TASK ========================= */
+/* =========================================================
+   SAVE TASK
+========================================================= */
 
 taskForm.addEventListener(
     "submit",
     async (event) => {
 
         event.preventDefault();
-
 
         const taskData = {
 
@@ -152,7 +374,6 @@ taskForm.addEventListener(
                     .value
         };
 
-
         if (
             !taskData.title ||
             !taskData.deadline ||
@@ -167,30 +388,29 @@ taskForm.addEventListener(
             return;
         }
 
-
         const reminderConfig =
             getReminderFormValues();
 
-
         const wasEditing =
-            editingTaskId !== null;
-
+            editingTaskId !==
+            null;
 
         const oldId =
             editingTaskId;
 
-
         const url =
             wasEditing
-                ? `/api/tasks/${editingTaskId}`
-                : "/api/tasks";
 
+                ? `/api/tasks/${editingTaskId}`
+
+                : "/api/tasks";
 
         const method =
             wasEditing
-                ? "PUT"
-                : "POST";
 
+                ? "PUT"
+
+                : "POST";
 
         try {
 
@@ -212,7 +432,6 @@ taskForm.addEventListener(
                     }
                 );
 
-
             const data =
                 await response
                     .json()
@@ -220,8 +439,9 @@ taskForm.addEventListener(
                         () => ({})
                     );
 
-
-            if (!response.ok) {
+            if (
+                !response.ok
+            ) {
 
                 throw new Error(
                     data.error ||
@@ -229,12 +449,12 @@ taskForm.addEventListener(
                 );
             }
 
-
             const savedId =
                 wasEditing
-                    ? oldId
-                    : data.id;
 
+                    ? oldId
+
+                    : data.id;
 
             if (
                 savedId !== undefined &&
@@ -247,27 +467,32 @@ taskForm.addEventListener(
                 );
             }
 
-
             closeTaskModal();
 
             await loadTasks();
 
-
             showToast(
+
                 wasEditing
+
                     ? "Task updated successfully."
+
                     : "Task created successfully.",
+
                 "success"
             );
 
-
         } catch (error) {
 
-            console.error(error);
+            console.error(
+                error
+            );
 
             showToast(
+
                 error.message ||
                 "Unable to save task.",
+
                 "error"
             );
         }
@@ -275,7 +500,9 @@ taskForm.addEventListener(
 );
 
 
-/* ========================= LOAD / RENDER ========================= */
+/* =========================================================
+   LOAD TASKS
+========================================================= */
 
 async function loadTasks() {
 
@@ -283,26 +510,28 @@ async function loadTasks() {
 
         const response =
             await fetch(
-                "/api/tasks"
+                "/api/tasks",
+                {
+                    cache:
+                        "no-store"
+                }
             );
 
-
-        if (!response.ok) {
+        if (
+            !response.ok
+        ) {
 
             throw new Error(
                 "Unable to load tasks"
             );
         }
 
-
         allTasks =
             await response.json();
-
 
         syncReminderStoreWithTasks(
             allTasks
         );
-
 
         applyFilters();
 
@@ -320,11 +549,11 @@ async function loadTasks() {
 
         checkTaskoraReminders();
 
-
     } catch (error) {
 
-        console.error(error);
-
+        console.error(
+            error
+        );
 
         taskList.innerHTML = `
 
@@ -339,14 +568,12 @@ async function loadTasks() {
                 </h3>
 
                 <p>
-                    Make sure the Flask server
-                    is running correctly.
+                    Please try again in a moment.
                 </p>
 
             </div>
 
         `;
-
 
         showToast(
             "Unable to load tasks.",
@@ -356,9 +583,90 @@ async function loadTasks() {
 }
 
 
-function renderTasks(tasks) {
+/* =========================================================
+   PRIORITY
+========================================================= */
 
-    if (!tasks.length) {
+function getPriorityInfo(
+    score
+) {
+
+    if (
+        score >= 80
+    ) {
+
+        return {
+
+            label:
+                "Urgent",
+
+            className:
+                "score-high",
+
+            color:
+                "#ff5d73"
+        };
+    }
+
+    if (
+        score >= 60
+    ) {
+
+        return {
+
+            label:
+                "High",
+
+            className:
+                "score-medium",
+
+            color:
+                "#f6c85f"
+        };
+    }
+
+    if (
+        score >= 40
+    ) {
+
+        return {
+
+            label:
+                "Medium",
+
+            className:
+                "score-medium",
+
+            color:
+                "#f6c85f"
+        };
+    }
+
+    return {
+
+        label:
+            "Low",
+
+        className:
+            "score-low",
+
+        color:
+            "#31d39b"
+    };
+}
+
+
+/* =========================================================
+   RENDER TASKS
+========================================================= */
+
+function renderTasks(
+    tasks
+) {
+
+    if (
+        !tasks.length
+    ) {
 
         taskList.innerHTML = `
 
@@ -373,8 +681,7 @@ function renderTasks(tasks) {
                 </h3>
 
                 <p>
-                    Add a task or change
-                    your search filters.
+                    Add a task or change your search filters.
                 </p>
 
             </div>
@@ -383,7 +690,6 @@ function renderTasks(tasks) {
 
         return;
     }
-
 
     taskList.innerHTML =
         tasks
@@ -395,36 +701,27 @@ function renderTasks(tasks) {
                             task.priority_score
                         );
 
-
                     const deadlineStatus =
                         getDeadlineStatus(
                             task.deadline
                         );
 
-
                     return `
 
                         <div
-                            class="
-                                task-card
-                                ${
-                                    task.completed
-                                        ? "completed"
-                                        : ""
-                                }
-                            "
+                            class="task-card ${
+                                task.completed
+                                    ? "completed"
+                                    : ""
+                            }"
                         >
 
                             <div class="task-main">
 
                                 <div
                                     class="priority-line"
-                                    style="
-                                        background:
-                                        ${priority.color}
-                                    "
+                                    style="background:${priority.color}"
                                 ></div>
-
 
                                 <div class="task-info">
 
@@ -434,16 +731,13 @@ function renderTasks(tasks) {
                                         )}
                                     </h3>
 
-
                                     <div class="task-meta">
 
                                         <span>
-                                            📅
-                                            ${formatDate(
+                                            📅 ${formatDate(
                                                 task.deadline
                                             )}
                                         </span>
-
 
                                         ${
                                             deadlineStatus &&
@@ -460,23 +754,17 @@ function renderTasks(tasks) {
                                                 : ""
                                         }
 
-
                                         <span>
                                             ⏱ ${task.hours}h
                                         </span>
 
-
                                         <span>
-                                            Importance
-                                            ${task.importance}/5
+                                            Importance ${task.importance}/5
                                         </span>
 
-
                                         <span>
-                                            Difficulty
-                                            ${task.difficulty}/5
+                                            Difficulty ${task.difficulty}/5
                                         </span>
-
 
                                         <span
                                             class="${priority.className}"
@@ -484,10 +772,11 @@ function renderTasks(tasks) {
                                             ${priority.label}
                                         </span>
 
-
-                                        ${renderReminderBadge(
-                                            task.id
-                                        )}
+                                        ${
+                                            renderReminderBadge(
+                                                task.id
+                                            )
+                                        }
 
                                     </div>
 
@@ -495,24 +784,16 @@ function renderTasks(tasks) {
 
                             </div>
 
-
                             <div class="task-actions">
 
                                 <div
-                                    class="
-                                        score
-                                        ${priority.className}
-                                    "
+                                    class="score ${priority.className}"
                                 >
                                     ${task.priority_score}/100
                                 </div>
 
-
                                 <button
-                                    class="
-                                        task-action
-                                        edit-btn
-                                    "
+                                    class="task-action edit-btn"
                                     type="button"
                                     onclick="editTask(${task.id})"
                                     title="Edit task"
@@ -520,33 +801,29 @@ function renderTasks(tasks) {
                                     ✏️
                                 </button>
 
-
                                 <button
-                                    class="
-                                        task-action
-                                        complete-btn
-                                    "
+                                    class="task-action complete-btn"
                                     type="button"
                                     onclick="toggleTask(${task.id})"
                                     title="${
                                         task.completed
+
                                             ? "Mark as active"
+
                                             : "Mark as completed"
                                     }"
                                 >
                                     ${
                                         task.completed
+
                                             ? "↺"
+
                                             : "✓"
                                     }
                                 </button>
 
-
                                 <button
-                                    class="
-                                        task-action
-                                        delete-btn
-                                    "
+                                    class="task-action delete-btn"
                                     type="button"
                                     onclick="deleteTask(${task.id})"
                                     title="Delete task"
@@ -565,18 +842,24 @@ function renderTasks(tasks) {
 }
 
 
-/* ========================= EDIT / TOGGLE / DELETE ========================= */
+/* =========================================================
+   EDIT TASK
+========================================================= */
 
-function editTask(id) {
+function editTask(
+    id
+) {
 
     const task =
         allTasks.find(
             (item) =>
-                item.id === id
+                item.id ===
+                id
         );
 
-
-    if (!task) {
+    if (
+        !task
+    ) {
 
         showToast(
             "Task not found.",
@@ -586,72 +869,93 @@ function editTask(id) {
         return;
     }
 
+    editingTaskId =
+        id;
 
-    editingTaskId = id;
-
-
-    document.getElementById(
-        "title"
-    ).value =
+    document
+        .getElementById(
+            "title"
+        )
+        .value =
         task.title;
 
-
-    document.getElementById(
-        "deadline"
-    ).value =
+    document
+        .getElementById(
+            "deadline"
+        )
+        .value =
         task.deadline;
 
-
-    document.getElementById(
-        "importance"
-    ).value =
+    document
+        .getElementById(
+            "importance"
+        )
+        .value =
         task.importance;
 
-
-    document.getElementById(
-        "difficulty"
-    ).value =
+    document
+        .getElementById(
+            "difficulty"
+        )
+        .value =
         task.difficulty;
 
-
-    document.getElementById(
-        "hours"
-    ).value =
+    document
+        .getElementById(
+            "hours"
+        )
+        .value =
         task.hours;
-
 
     setReminderFormValues(
 
-        getReminderConfig(id) ||
+        getReminderConfig(
+            id
+        )
+
+        ||
 
         {
-            mode: "none",
-            time: "18:00",
-            customDays: 2,
-            voiceEnabled: true,
-            language: "en",
-            voiceStyle: "premium"
+            mode:
+                "none",
+
+            time:
+                "18:00",
+
+            customDays:
+                2,
+
+            voiceEnabled:
+                true,
+
+            language:
+                "en",
+
+            voiceStyle:
+                "premium"
         }
     );
 
-
-    document.querySelector(
-        ".modal-header h2"
-    ).textContent =
+    document
+        .querySelector(
+            ".modal-header h2"
+        )
+        .textContent =
         "Edit Academic Task";
 
-
-    document.querySelector(
-        ".modal-header p"
-    ).textContent =
+    document
+        .querySelector(
+            ".modal-header p"
+        )
+        .textContent =
         "EDIT TASK";
 
-
-    document.querySelector(
-        ".create-task-btn"
-    ).textContent =
+    document
+        .querySelector(
+            ".create-task-btn"
+        )
+        .textContent =
         "Save Changes";
-
 
     modal.classList.add(
         "show"
@@ -659,738 +963,171 @@ function editTask(id) {
 }
 
 
-async function toggleTask(id) {
+/* =========================================================
+   TOGGLE TASK
+========================================================= */
+
+async function toggleTask(
+    id
+) {
 
     const task =
         allTasks.find(
             (item) =>
-                item.id === id
+                item.id ===
+                id
         );
-
 
     const wasCompleted =
         task
-            ? task.completed === 1
-            : false;
 
+            ? task.completed ===
+                1
+
+            : false;
 
     try {
 
         const response =
             await fetch(
+
                 `/api/tasks/${id}/toggle`,
+
                 {
-                    method: "PUT"
+                    method:
+                        "PUT"
                 }
             );
 
+        if (
+            !response.ok
+        ) {
 
-        if (!response.ok) {
+            const data =
+                await response
+                    .json()
+                    .catch(
+                        () => ({})
+                    );
 
-            throw new Error();
+            throw new Error(
+                data.error ||
+                "Unable to update task"
+            );
         }
-
 
         await loadTasks();
 
-
         showToast(
+
             wasCompleted
+
                 ? "Task moved back to active."
+
                 : "Task completed successfully.",
 
             wasCompleted
+
                 ? "info"
+
                 : "success"
         );
 
+    } catch (error) {
 
-    } catch {
+        console.error(
+            error
+        );
 
         showToast(
+
+            error.message ||
             "Unable to update task.",
+
             "error"
         );
     }
 }
 
 
-async function deleteTask(id) {
+/* =========================================================
+   DELETE TASK
+========================================================= */
+
+async function deleteTask(
+    id
+) {
 
     const confirmed =
         await confirmDelete();
 
-
-    if (!confirmed) {
+    if (
+        !confirmed
+    ) {
         return;
     }
-
 
     try {
 
         const response =
             await fetch(
+
                 `/api/tasks/${id}`,
+
                 {
-                    method: "DELETE"
+                    method:
+                        "DELETE"
                 }
             );
 
+        if (
+            !response.ok
+        ) {
 
-        if (!response.ok) {
+            const data =
+                await response
+                    .json()
+                    .catch(
+                        () => ({})
+                    );
 
-            throw new Error();
+            throw new Error(
+                data.error ||
+                "Unable to delete task"
+            );
         }
 
-
-        removeReminderConfig(id);
+        removeReminderConfig(
+            id
+        );
 
         await loadTasks();
-
 
         showToast(
             "Task deleted successfully.",
             "success"
         );
 
+    } catch (error) {
 
-    } catch {
+        console.error(
+            error
+        );
 
         showToast(
+
+            error.message ||
             "Unable to delete task.",
+
             "error"
         );
     }
 }
 
 
-/* ========================= PRIORITY / STATS ========================= */
-
-function getPriorityInfo(score) {
-
-    if (score >= 80) {
-
-        return {
-            label: "Urgent",
-            className: "score-high",
-            color: "#ff5d73"
-        };
-    }
-
-
-    if (score >= 60) {
-
-        return {
-            label: "High",
-            className: "score-medium",
-            color: "#f6c85f"
-        };
-    }
-
-
-    if (score >= 40) {
-
-        return {
-            label: "Medium",
-            className: "score-medium",
-            color: "#f6c85f"
-        };
-    }
-
-
-    return {
-        label: "Low",
-        className: "score-low",
-        color: "#31d39b"
-    };
-}
-
-
-function updateStats(tasks) {
-
-    const total =
-        tasks.length;
-
-
-    const completed =
-        tasks.filter(
-            (task) =>
-                task.completed === 1
-        ).length;
-
-
-    const high =
-        tasks.filter(
-            (task) =>
-                task.completed === 0 &&
-                task.priority_score >= 60
-        ).length;
-
-
-    const productivity =
-        total
-            ? Math.round(
-                completed /
-                total *
-                100
-            )
-            : 0;
-
-
-    setText(
-        "totalTasks",
-        total
-    );
-
-
-    setText(
-        "completedTasks",
-        completed
-    );
-
-
-    setText(
-        "urgentTasks",
-        high
-    );
-
-
-    setText(
-        "productivity",
-        `${productivity}%`
-    );
-
-
-    setText(
-        "progressText",
-        `${productivity}%`
-    );
-
-
-    const progressFill =
-        document.getElementById(
-            "progressFill"
-        );
-
-
-    if (progressFill) {
-
-        progressFill.style.width =
-            `${productivity}%`;
-    }
-
-
-    const message =
-        total === 0
-
-            ? "Add your first task to start tracking progress."
-
-            : productivity === 100
-
-                ? "Excellent! All tasks are completed."
-
-                : productivity >= 70
-
-                    ? "Great progress. You're almost there."
-
-                    : productivity >= 40
-
-                        ? "Good momentum. Keep moving."
-
-                        : "Complete tasks to build your momentum.";
-
-
-    setText(
-        "progressMessage",
-        message
-    );
-}
-
-
-function updateDeadlineInsights(tasks) {
-
-    const today =
-        startOfToday();
-
-
-    const active =
-        tasks.filter(
-            (task) =>
-                task.completed === 0
-        );
-
-
-    const dueToday =
-        active.filter(
-            (task) =>
-                parseTaskDate(
-                    task.deadline
-                ).getTime() ===
-                today.getTime()
-        );
-
-
-    const overdue =
-        active.filter(
-            (task) =>
-                parseTaskDate(
-                    task.deadline
-                ) < today
-        );
-
-
-    setText(
-        "dueTodayCount",
-        dueToday.length
-    );
-
-
-    setText(
-        "overdueCount",
-        overdue.length
-    );
-
-
-    setText(
-        "remainingCount",
-        active.length
-    );
-
-
-    const upcoming =
-        active
-
-            .filter(
-                (task) =>
-                    parseTaskDate(
-                        task.deadline
-                    ) >= today
-            )
-
-            .sort(
-                (a, b) =>
-                    parseTaskDate(
-                        a.deadline
-                    )
-                    -
-                    parseTaskDate(
-                        b.deadline
-                    )
-            );
-
-
-    setText(
-        "nextDeadline",
-
-        upcoming.length
-
-            ? `${upcoming[0].title} • ${formatDate(
-                upcoming[0].deadline
-            )}`
-
-            : "No upcoming tasks"
-    );
-}
-
-
-function renderSmartFocus(tasks) {
-
-    const active =
-        tasks.filter(
-            (task) =>
-                task.completed === 0
-        );
-
-
-    const description =
-        document.getElementById(
-            "focusDescription"
-        );
-
-
-    const score =
-        document.getElementById(
-            "focusScore"
-        );
-
-
-    if (!active.length) {
-
-        description.textContent =
-            "You're all caught up. Add a new task to continue.";
-
-
-        score.textContent =
-            "--";
-
-
-        score.style.color =
-            "";
-
-
-        return;
-    }
-
-
-    const best =
-        active.reduce(
-            (first, second) =>
-                second.priority_score >
-                first.priority_score
-                    ? second
-                    : first
-        );
-
-
-    const priority =
-        getPriorityInfo(
-            best.priority_score
-        );
-
-
-    description.innerHTML = `
-
-        Start with
-
-        <strong>
-            ${escapeHTML(
-                best.title
-            )}
-        </strong>.
-
-        It currently has the highest priority
-        and is classified as
-
-        <strong
-            style="
-                color:
-                ${priority.color}
-            "
-        >
-            ${priority.label}
-        </strong>.
-
-    `;
-
-
-    score.textContent =
-        best.priority_score;
-
-
-    score.style.color =
-        priority.color;
-}
-
-
-/* ========================= SEARCH / FILTER ========================= */
-
-function applyFilters() {
-
-    const search =
-        (
-            searchInput?.value ||
-            ""
-        )
-            .toLowerCase()
-            .trim();
-
-
-    let list =
-        [...allTasks];
-
-
-    if (
-        currentFilter === "active"
-    ) {
-
-        list =
-            list.filter(
-                (task) =>
-                    task.completed === 0
-            );
-    }
-
-
-    if (
-        currentFilter === "completed"
-    ) {
-
-        list =
-            list.filter(
-                (task) =>
-                    task.completed === 1
-            );
-    }
-
-
-    if (search) {
-
-        list =
-            list.filter(
-                (task) =>
-                    task.title
-                        .toLowerCase()
-                        .includes(search)
-            );
-    }
-
-
-    renderTasks(list);
-}
-
-
-searchInput?.addEventListener(
-    "input",
-    applyFilters
-);
-
-
-filterButtons.forEach(
-    (button) => {
-
-        button.addEventListener(
-            "click",
-            () => {
-
-                filterButtons.forEach(
-                    (item) =>
-                        item.classList.remove(
-                            "active"
-                        )
-                );
-
-
-                button.classList.add(
-                    "active"
-                );
-
-
-                currentFilter =
-                    button.dataset.filter;
-
-
-                applyFilters();
-            }
-        );
-    }
-);
-
-
-/* ========================= DATE / HELPERS ========================= */
-
-function startOfToday() {
-
-    const now =
-        new Date();
-
-
-    return new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate()
-    );
-}
-
-
-function parseTaskDate(value) {
-
-    const [
-        year,
-        month,
-        day
-    ] =
-        String(value)
-            .split("-")
-            .map(Number);
-
-
-    return new Date(
-        year,
-        month - 1,
-        day
-    );
-}
-
-
-function formatDate(value) {
-
-    return parseTaskDate(
-        value
-    )
-        .toLocaleDateString(
-            "en-US",
-            {
-                month: "short",
-                day: "numeric",
-                year: "numeric"
-            }
-        );
-}
-
-
-function getDeadlineStatus(value) {
-
-    const date =
-        parseTaskDate(value);
-
-
-    const today =
-        startOfToday();
-
-
-    if (
-        date < today
-    ) {
-
-        return {
-            text: "Overdue",
-            className: "deadline-overdue"
-        };
-    }
-
-
-    if (
-        date.getTime() ===
-        today.getTime()
-    ) {
-
-        return {
-            text: "Due Today",
-            className: "deadline-today"
-        };
-    }
-
-
-    return null;
-}
-
-
-function setText(
-    id,
-    value
-) {
-
-    const element =
-        document.getElementById(
-            id
-        );
-
-
-    if (element) {
-
-        element.textContent =
-            value;
-    }
-}
-
-
-function escapeHTML(value) {
-
-    const div =
-        document.createElement(
-            "div"
-        );
-
-
-    div.textContent =
-        String(
-            value ?? ""
-        );
-
-
-    return div.innerHTML;
-}
-
-
-/* ========================= TOAST ========================= */
-
-function showToast(
-    message,
-    type = "success"
-) {
-
-    let container =
-        document.querySelector(
-            ".toast-container"
-        );
-
-
-    if (!container) {
-
-        container =
-            document.createElement(
-                "div"
-            );
-
-
-        container.className =
-            "toast-container";
-
-
-        document.body.appendChild(
-            container
-        );
-    }
-
-
-    const icons = {
-        success: "✓",
-        error: "×",
-        warning: "!",
-        info: "i"
-    };
-
-
-    const toast =
-        document.createElement(
-            "div"
-        );
-
-
-    toast.className =
-        `toast ${type}`;
-
-
-    toast.innerHTML = `
-
-        <div class="toast-icon">
-            ${icons[type] || "i"}
-        </div>
-
-        <div class="toast-message">
-            ${escapeHTML(message)}
-        </div>
-
-    `;
-
-
-    container.appendChild(
-        toast
-    );
-
-
-    setTimeout(
-        () => {
-
-            toast.classList.add(
-                "hide"
-            );
-
-
-            setTimeout(
-                () => {
-                    toast.remove();
-                },
-                300
-            );
-
-        },
-        3200
-    );
-}
-
-
-/* ========================= DELETE CONFIRM ========================= */
+/* =========================================================
+   DELETE CONFIRM
+========================================================= */
 
 function confirmDelete() {
 
@@ -1402,10 +1139,8 @@ function confirmDelete() {
                     "div"
                 );
 
-
             overlay.className =
                 "taskora-confirm-overlay";
-
 
             overlay.innerHTML = `
 
@@ -1420,8 +1155,7 @@ function confirmDelete() {
                     </h3>
 
                     <p>
-                        This task will be permanently
-                        removed from your planner.
+                        This task will be permanently removed from your planner.
                     </p>
 
                     <div class="confirm-actions">
@@ -1446,47 +1180,51 @@ function confirmDelete() {
 
             `;
 
-
             document.body.appendChild(
                 overlay
             );
-
 
             const done =
                 (value) => {
 
                     overlay.remove();
 
-                    resolve(value);
+                    resolve(
+                        value
+                    );
                 };
-
 
             overlay
                 .querySelector(
                     ".confirm-cancel"
                 )
                 .onclick =
-                    () =>
-                        done(false);
-
+                () =>
+                    done(
+                        false
+                    );
 
             overlay
                 .querySelector(
                     ".confirm-delete"
                 )
                 .onclick =
-                    () =>
-                        done(true);
-
+                () =>
+                    done(
+                        true
+                    );
 
             overlay.onclick =
                 (event) => {
 
                     if (
-                        event.target === overlay
+                        event.target ===
+                        overlay
                     ) {
 
-                        done(false);
+                        done(
+                            false
+                        );
                     }
                 };
         }
@@ -1494,16 +1232,419 @@ function confirmDelete() {
 }
 
 
-/* ========================= REMINDER STORAGE ========================= */
+/* =========================================================
+   STATS
+========================================================= */
+
+function updateStats(
+    tasks
+) {
+
+    const total =
+        tasks.length;
+
+    const completed =
+        tasks.filter(
+            (task) =>
+                task.completed ===
+                1
+        ).length;
+
+    const high =
+        tasks.filter(
+            (task) =>
+                task.completed ===
+                    0
+
+                &&
+
+                task.priority_score >=
+                    60
+        ).length;
+
+    const productivity =
+        total
+
+            ? Math.round(
+                (
+                    completed /
+                    total
+                )
+                *
+                100
+            )
+
+            : 0;
+
+    setText(
+        "totalTasks",
+        total
+    );
+
+    setText(
+        "completedTasks",
+        completed
+    );
+
+    setText(
+        "urgentTasks",
+        high
+    );
+
+    setText(
+        "productivity",
+        `${productivity}%`
+    );
+
+    setText(
+        "progressText",
+        `${productivity}%`
+    );
+
+    const progressFill =
+        document.getElementById(
+            "progressFill"
+        );
+
+    if (
+        progressFill
+    ) {
+
+        progressFill.style.width =
+            `${productivity}%`;
+    }
+
+    const message =
+
+        total === 0
+
+            ? "Add your first task to start tracking progress."
+
+            : productivity === 100
+
+                ? "Excellent! All tasks are completed."
+
+                : productivity >= 70
+
+                    ? "Great progress. You're almost there."
+
+                    : productivity >= 40
+
+                        ? "Good momentum. Keep moving."
+
+                        : "Complete tasks to build your momentum.";
+
+    setText(
+        "progressMessage",
+        message
+    );
+}
+
+
+/* =========================================================
+   DEADLINE INSIGHTS
+========================================================= */
+
+function updateDeadlineInsights(
+    tasks
+) {
+
+    const today =
+        startOfToday();
+
+    const active =
+        tasks.filter(
+            (task) =>
+                task.completed ===
+                    0
+        );
+
+    const dueToday =
+        active.filter(
+            (task) =>
+                parseTaskDate(
+                    task.deadline
+                )
+                    .getTime() ===
+                today
+                    .getTime()
+        );
+
+    const overdue =
+        active.filter(
+            (task) =>
+                parseTaskDate(
+                    task.deadline
+                )
+                <
+                today
+        );
+
+    setText(
+        "dueTodayCount",
+        dueToday.length
+    );
+
+    setText(
+        "overdueCount",
+        overdue.length
+    );
+
+    setText(
+        "remainingCount",
+        active.length
+    );
+
+    const upcoming =
+        active
+
+            .filter(
+                (task) =>
+                    parseTaskDate(
+                        task.deadline
+                    )
+                    >=
+                    today
+            )
+
+            .sort(
+                (a, b) =>
+                    parseTaskDate(
+                        a.deadline
+                    )
+                    -
+                    parseTaskDate(
+                        b.deadline
+                    )
+            );
+
+    setText(
+
+        "nextDeadline",
+
+        upcoming.length
+
+            ? `${upcoming[0].title} • ${formatDate(
+                upcoming[0].deadline
+            )}`
+
+            : "No upcoming tasks"
+    );
+}
+
+
+/* =========================================================
+   SMART FOCUS
+========================================================= */
+
+function renderSmartFocus(
+    tasks
+) {
+
+    const active =
+        tasks.filter(
+            (task) =>
+                task.completed ===
+                    0
+        );
+
+    const description =
+        document.getElementById(
+            "focusDescription"
+        );
+
+    const score =
+        document.getElementById(
+            "focusScore"
+        );
+
+    if (
+        !description ||
+        !score
+    ) {
+        return;
+    }
+
+    if (
+        !active.length
+    ) {
+
+        description.textContent =
+            "You're all caught up. Add a new task to continue.";
+
+        score.textContent =
+            "--";
+
+        score.style.color =
+            "";
+
+        return;
+    }
+
+    const best =
+        active.reduce(
+            (
+                first,
+                second
+            ) =>
+                second.priority_score >
+                first.priority_score
+
+                    ? second
+
+                    : first
+        );
+
+    const priority =
+        getPriorityInfo(
+            best.priority_score
+        );
+
+    description.innerHTML = `
+
+        Start with
+
+        <strong>
+            ${escapeHTML(
+                best.title
+            )}
+        </strong>.
+
+        It currently has the highest priority
+        and is classified as
+
+        <strong
+            style="color:${priority.color}"
+        >
+            ${priority.label}
+        </strong>.
+
+    `;
+
+    score.textContent =
+        best.priority_score;
+
+    score.style.color =
+        priority.color;
+}
+
+
+/* =========================================================
+   SEARCH / FILTER
+========================================================= */
+
+function applyFilters() {
+
+    const search =
+        (
+            searchInput?.value ||
+            ""
+        )
+            .toLowerCase()
+            .trim();
+
+    let list =
+        [
+            ...allTasks
+        ];
+
+    if (
+        currentFilter ===
+        "active"
+    ) {
+
+        list =
+            list.filter(
+                (task) =>
+                    task.completed ===
+                        0
+            );
+    }
+
+    if (
+        currentFilter ===
+        "completed"
+    ) {
+
+        list =
+            list.filter(
+                (task) =>
+                    task.completed ===
+                        1
+            );
+    }
+
+    if (
+        search
+    ) {
+
+        list =
+            list.filter(
+                (task) =>
+                    task.title
+                        .toLowerCase()
+                        .includes(
+                            search
+                        )
+            );
+    }
+
+    renderTasks(
+        list
+    );
+}
+
+searchInput
+    ?.addEventListener(
+        "input",
+        applyFilters
+    );
+
+filterButtons.forEach(
+    (button) => {
+
+        button.addEventListener(
+            "click",
+            () => {
+
+                filterButtons.forEach(
+                    (item) =>
+                        item.classList.remove(
+                            "active"
+                        )
+                );
+
+                button.classList.add(
+                    "active"
+                );
+
+                currentFilter =
+                    button.dataset.filter;
+
+                applyFilters();
+            }
+        );
+    }
+);
+
+
+/* =========================================================
+   REMINDER STORAGE
+========================================================= */
 
 function loadReminderStore() {
 
     try {
 
         return JSON.parse(
+
             localStorage.getItem(
                 REMINDER_STORAGE_KEY
-            ) || "{}"
+            )
+
+            ||
+
+            "{}"
         );
 
     } catch {
@@ -1512,26 +1653,37 @@ function loadReminderStore() {
     }
 }
 
-
-function writeReminderStore(store) {
+function writeReminderStore(
+    store
+) {
 
     localStorage.setItem(
+
         REMINDER_STORAGE_KEY,
-        JSON.stringify(store)
+
+        JSON.stringify(
+            store
+        )
     );
 }
 
-
-function getReminderConfig(id) {
+function getReminderConfig(
+    id
+) {
 
     return (
+
         loadReminderStore()[
-            String(id)
-        ] ||
+            String(
+                id
+            )
+        ]
+
+        ||
+
         null
     );
 }
-
 
 function saveReminderConfig(
     id,
@@ -1541,13 +1693,22 @@ function saveReminderConfig(
     const store =
         loadReminderStore();
 
-
     const oldConfig =
-        store[String(id)] ||
+        store[
+            String(
+                id
+            )
+        ]
+
+        ||
+
         {};
 
-
-    store[String(id)] = {
+    store[
+        String(
+            id
+        )
+    ] = {
 
         ...config,
 
@@ -1556,29 +1717,28 @@ function saveReminderConfig(
             ""
     };
 
-
     writeReminderStore(
         store
     );
 }
 
-
-function removeReminderConfig(id) {
+function removeReminderConfig(
+    id
+) {
 
     const store =
         loadReminderStore();
 
-
     delete store[
-        String(id)
+        String(
+            id
+        )
     ];
-
 
     writeReminderStore(
         store
     );
 }
-
 
 function syncReminderStoreWithTasks(
     tasks
@@ -1587,38 +1747,45 @@ function syncReminderStoreWithTasks(
     const store =
         loadReminderStore();
 
-
     const validIds =
         new Set(
+
             tasks.map(
                 (task) =>
-                    String(task.id)
+                    String(
+                        task.id
+                    )
             )
         );
-
 
     let changed =
         false;
 
-
-    Object
-        .keys(store)
+    Object.keys(
+        store
+    )
         .forEach(
             (id) => {
 
                 if (
-                    !validIds.has(id)
+                    !validIds.has(
+                        id
+                    )
                 ) {
 
-                    delete store[id];
+                    delete store[
+                        id
+                    ];
 
-                    changed = true;
+                    changed =
+                        true;
                 }
             }
         );
 
-
-    if (changed) {
+    if (
+        changed
+    ) {
 
         writeReminderStore(
             store
@@ -1627,7 +1794,9 @@ function syncReminderStoreWithTasks(
 }
 
 
-/* ========================= REMINDER FORM ========================= */
+/* =========================================================
+   REMINDER FORM
+========================================================= */
 
 function getReminderFormValues() {
 
@@ -1643,11 +1812,16 @@ function getReminderFormValues() {
 
         customDays:
             Math.max(
+
                 0,
+
                 parseInt(
-                    customDaysInput?.value || "2",
+                    customDaysInput?.value ||
+                    "2",
                     10
-                ) || 0
+                )
+                ||
+                0
             ),
 
         voiceEnabled:
@@ -1656,132 +1830,162 @@ function getReminderFormValues() {
             ),
 
         language:
-            voiceLanguage?.value === "ar"
+            voiceLanguage?.value ===
+                "ar"
+
                 ? "ar"
+
                 : "en",
 
         voiceStyle:
-            voiceStyle?.value === "default"
+            voiceStyle?.value ===
+                "default"
+
                 ? "default"
+
                 : "premium"
     };
 }
-
 
 function setReminderFormValues(
     config = {}
 ) {
 
-    if (reminderMode) {
+    if (
+        reminderMode
+    ) {
 
         const supportedModes =
-            new Set([
-                "smart",
-                "one_day",
-                "three_days",
-                "one_week",
-                "custom",
-                "none"
-            ]);
+            new Set(
+                [
+                    "smart",
+                    "one_day",
+                    "three_days",
+                    "one_week",
+                    "custom",
+                    "none"
+                ]
+            );
 
+        reminderMode.value =
 
-        const savedMode =
             supportedModes.has(
                 config.mode
             )
+
                 ? config.mode
-                : (
-                    config.mode === "every_three_days"
-                        ? "smart"
-                        : "none"
-                );
 
+                : config.mode ===
+                    "every_three_days"
 
-        reminderMode.value =
-            savedMode;
+                    ? "smart"
+
+                    : "none";
     }
 
-
-    if (reminderTime) {
+    if (
+        reminderTime
+    ) {
 
         reminderTime.value =
             config.time ||
             "18:00";
     }
 
-
-    if (customDaysInput) {
+    if (
+        customDaysInput
+    ) {
 
         customDaysInput.value =
+
             Number.isFinite(
-                Number(config.customDays)
+                Number(
+                    config.customDays
+                )
             )
+
                 ? Math.max(
                     0,
-                    Number(config.customDays)
+                    Number(
+                        config.customDays
+                    )
                 )
+
                 : 2;
     }
 
-
-    if (voiceLanguage) {
+    if (
+        voiceLanguage
+    ) {
 
         voiceLanguage.value =
-            config.language === "ar"
+
+            config.language ===
+                "ar"
+
                 ? "ar"
+
                 : "en";
     }
 
-
-    if (voiceStyle) {
+    if (
+        voiceStyle
+    ) {
 
         voiceStyle.value =
-            config.voiceStyle === "default"
+
+            config.voiceStyle ===
+                "default"
+
                 ? "default"
+
                 : "premium";
     }
 
-
-    if (voiceEnabled) {
+    if (
+        voiceEnabled
+    ) {
 
         voiceEnabled.checked =
-            config.voiceEnabled !== false;
+            config.voiceEnabled !==
+            false;
     }
-
 
     populateVoiceSelector();
 
     updateReminderControls();
 }
 
-
 function updateReminderControls() {
 
     const disabled =
-        !reminderMode ||
+        !reminderMode
+
+        ||
+
         reminderMode.value ===
             "none";
-
 
     const isCustom =
         reminderMode?.value ===
             "custom";
 
-
-    if (customDaysGroup) {
+    if (
+        customDaysGroup
+    ) {
 
         customDaysGroup.hidden =
             !isCustom;
     }
 
-
-    if (customDaysInput) {
+    if (
+        customDaysInput
+    ) {
 
         customDaysInput.disabled =
             disabled ||
             !isCustom;
     }
-
 
     [
         reminderTime,
@@ -1795,7 +1999,9 @@ function updateReminderControls() {
         .forEach(
             (element) => {
 
-                if (element) {
+                if (
+                    element
+                ) {
 
                     element.disabled =
                         disabled;
@@ -1803,61 +2009,85 @@ function updateReminderControls() {
             }
         );
 
-
-    if (voiceStateText) {
+    if (
+        voiceStateText
+    ) {
 
         voiceStateText.textContent =
             voiceEnabled?.checked
+
                 ? "ON"
+
                 : "OFF";
     }
-
 
     updateNotificationStatus();
 }
 
 
-/* ========================= TWO FIXED VOICES ONLY ========================= */
+/* =========================================================
+   VOICE SYSTEM
+
+   Desktop:
+   Ryan / Hamdan first
+
+   Mobile:
+   fallback to any available voice
+========================================================= */
 
 function refreshVoices() {
 
     if (
         !(
-            "speechSynthesis" in
+            "speechSynthesis"
+            in
             window
         )
     ) {
 
-        availableVoices = [];
+        availableVoices =
+            [];
 
         return [];
     }
 
-
     availableVoices =
         window
             .speechSynthesis
-            .getVoices() ||
-        [];
+            .getVoices()
 
+        ||
+
+        [];
 
     return availableVoices;
 }
 
-
-function getFixedVoice(language) {
+function getBestVoice(
+    language
+) {
 
     const voices =
         refreshVoices();
 
+    if (
+        !voices.length
+    ) {
+
+        return null;
+    }
+
+
+    /* =========================
+       ARABIC
+    ========================= */
 
     if (
         language ===
         "ar"
     ) {
 
-        return (
-
+        const hamdan =
             voices.find(
                 (voice) => {
 
@@ -1867,7 +2097,6 @@ function getFixedVoice(language) {
                             ""
                         )
                             .toLowerCase();
-
 
                     const lang =
                         String(
@@ -1876,26 +2105,65 @@ function getFixedVoice(language) {
                         )
                             .toLowerCase();
 
-
                     return (
+
                         (
                             name.includes(
                                 "hamdan"
-                            ) ||
+                            )
+
+                            ||
+
                             name.includes(
                                 "حمدان"
                             )
                         )
+
                         &&
+
                         lang.startsWith(
                             "ar"
                         )
                     );
                 }
-            )
+            );
 
-            ||
+        if (
+            hamdan
+        ) {
 
+            return hamdan;
+        }
+
+        const anyArabic =
+            voices.find(
+                (voice) =>
+                    String(
+                        voice.lang ||
+                        ""
+                    )
+                        .toLowerCase()
+                        .startsWith(
+                            "ar"
+                        )
+            );
+
+        if (
+            anyArabic
+        ) {
+
+            return anyArabic;
+        }
+    }
+
+
+    /* =========================
+       ENGLISH
+    ========================= */
+
+    else {
+
+        const ryan =
             voices.find(
                 (voice) => {
 
@@ -1906,185 +2174,168 @@ function getFixedVoice(language) {
                         )
                             .toLowerCase();
 
+                    const lang =
+                        String(
+                            voice.lang ||
+                            ""
+                        )
+                            .toLowerCase();
 
                     return (
+
                         name.includes(
-                            "hamdan"
+                            "ryan"
                         )
-                        ||
-                        name.includes(
-                            "حمدان"
+
+                        &&
+
+                        lang.startsWith(
+                            "en"
                         )
                     );
                 }
-            )
+            );
 
-            ||
+        if (
+            ryan
+        ) {
 
-            null
-        );
-    }
+            return ryan;
+        }
 
-
-    return (
-
-        voices.find(
-            (voice) => {
-
-                const name =
-                    String(
-                        voice.name ||
-                        ""
-                    )
-                        .toLowerCase();
-
-
-                const lang =
+        const anyEnglish =
+            voices.find(
+                (voice) =>
                     String(
                         voice.lang ||
                         ""
                     )
-                        .toLowerCase();
+                        .toLowerCase()
+                        .startsWith(
+                            "en"
+                        )
+            );
+
+        if (
+            anyEnglish
+        ) {
+
+            return anyEnglish;
+        }
+    }
 
 
-                return (
-                    name.includes(
-                        "ryan"
-                    )
-                    &&
-                    lang.startsWith(
-                        "en"
-                    )
-                );
-            }
-        )
+    /* =========================
+       FINAL FALLBACK
+    ========================= */
 
-        ||
-
-        voices.find(
-            (voice) =>
-                String(
-                    voice.name ||
-                    ""
-                )
-                    .toLowerCase()
-                    .includes(
-                        "ryan"
-                    )
-        )
-
-        ||
-
+    return (
+        voices[0] ||
         null
     );
 }
 
-
-function getFixedVoiceLabel(
+function getVoiceLabel(
     language,
     voice
 ) {
 
-    if (voice) {
+    if (
+        voice
+    ) {
 
         return `${voice.name} (${voice.lang})`;
     }
 
-
     return language ===
         "ar"
 
-        ? "Microsoft Hamdan Online (Natural) - Arabic (UAE)"
+        ? "Browser Arabic Voice"
 
-        : "Microsoft Ryan Online (Natural) - English (UK)";
+        : "Browser English Voice";
 }
-
 
 function populateVoiceSelector() {
 
-    if (!voiceSelector) {
+    if (
+        !voiceSelector
+    ) {
 
         return;
     }
 
-
     const language =
         voiceLanguage?.value ===
             "ar"
+
             ? "ar"
+
             : "en";
 
-
     const voice =
-        getFixedVoice(
+        getBestVoice(
             language
         );
 
-
     voiceSelector.innerHTML =
         "";
-
 
     const option =
         document.createElement(
             "option"
         );
 
-
     option.value =
         voice?.name ||
-        (
-            language ===
-                "ar"
-                ? "fixed-hamdan"
-                : "fixed-ryan"
-        );
-
+        "browser-default";
 
     option.textContent =
-        getFixedVoiceLabel(
+        getVoiceLabel(
             language,
             voice
         );
 
-
     voiceSelector.appendChild(
         option
     );
-
 
     voiceSelector.value =
         option.value;
 }
 
 
-function resolveVoice(language) {
-
-    return getFixedVoice(
-        language
-    );
-}
-
-
-/* ========================= SPEECH ========================= */
+/* =========================================================
+   SPEECH
+========================================================= */
 
 function speakReminder(
+
     message,
+
     language = "en",
+
     cancelCurrent = false,
+
     style = "premium"
+
 ) {
 
     if (
+
         !(
-            "speechSynthesis" in
+            "speechSynthesis"
+            in
             window
         )
+
         ||
+
         !(
-            "SpeechSynthesisUtterance" in
+            "SpeechSynthesisUtterance"
+            in
             window
         )
+
     ) {
 
         showToast(
@@ -2092,41 +2343,22 @@ function speakReminder(
             "warning"
         );
 
-        return;
+        return false;
     }
 
-
-    const selectedVoice =
-        resolveVoice(
-            language
-        );
-
-
-    if (!selectedVoice) {
-
-        showToast(
-
-            language ===
-                "ar"
-
-                ? "Microsoft Hamdan voice is not available in this browser."
-
-                : "Microsoft Ryan voice is not available in this browser.",
-
-            "warning"
-        );
-
-        return;
-    }
-
-
-    if (cancelCurrent) {
+    if (
+        cancelCurrent
+    ) {
 
         window
             .speechSynthesis
             .cancel();
     }
 
+    const selectedVoice =
+        getBestVoice(
+            language
+        );
 
     const speech =
         new SpeechSynthesisUtterance(
@@ -2134,36 +2366,81 @@ function speakReminder(
         );
 
 
-    speech.voice =
-        selectedVoice;
+    /* =====================================================
+       IF VOICE EXISTS
+    ===================================================== */
+
+    if (
+        selectedVoice
+    ) {
+
+        speech.voice =
+            selectedVoice;
+
+        speech.lang =
+            selectedVoice.lang
+
+            ||
+
+            (
+                language ===
+                    "ar"
+
+                    ? "ar-SA"
+
+                    : "en-US"
+            );
+    }
 
 
-    speech.lang =
-        selectedVoice.lang ||
-        (
+    /* =====================================================
+       MOBILE FALLBACK
+
+       If getVoices() is empty,
+       Android / iPhone browser picks its default.
+    ===================================================== */
+
+    else {
+
+        speech.lang =
+
             language ===
                 "ar"
-                ? "ar-AE"
-                : "en-GB"
-        );
+
+                ? "ar-SA"
+
+                : "en-US";
+    }
 
 
     speech.rate =
         style ===
             "premium"
-            ? 0.92
-            : 1;
 
+            ? 0.92
+
+            : 1;
 
     speech.pitch =
         style ===
             "premium"
-            ? 0.95
-            : 1;
 
+            ? 0.95
+
+            : 1;
 
     speech.volume =
         1;
+
+
+    speech.onerror =
+        (event) => {
+
+            console.warn(
+                "Taskora speech error:",
+                event.error
+            );
+        };
 
 
     window
@@ -2171,28 +2448,37 @@ function speakReminder(
         .speak(
             speech
         );
+
+    return true;
 }
 
 
-/* ========================= REMINDER BADGE ========================= */
+/* =========================================================
+   REMINDER BADGE
+========================================================= */
 
-function renderReminderBadge(id) {
+function renderReminderBadge(
+    id
+) {
 
     const config =
         getReminderConfig(
             id
         );
 
-
     if (
-        !config ||
+
+        !config
+
+        ||
+
         config.mode ===
             "none"
+
     ) {
 
         return "";
     }
-
 
     const labels = {
 
@@ -2209,21 +2495,35 @@ function renderReminderBadge(id) {
             "1 Week Before",
 
         custom:
-            `${Math.max(
-                0,
-                Number(config.customDays) || 0
-            )} Day${
-                Number(config.customDays) === 1
+            `${
+                Math.max(
+                    0,
+                    Number(
+                        config.customDays
+                    )
+                    ||
+                    0
+                )
+            } Day${
+                Number(
+                    config.customDays
+                ) ===
+                1
+
                     ? ""
+
                     : "s"
             } Before`
     };
 
-
     const label =
-        labels[config.mode] ||
-        "Reminder";
+        labels[
+            config.mode
+        ]
 
+        ||
+
+        "Reminder";
 
     return `
 
@@ -2233,14 +2533,18 @@ function renderReminderBadge(id) {
 
             •
 
-            ${escapeHTML(
-                config.time ||
-                "18:00"
-            )}
+            ${
+                escapeHTML(
+                    config.time ||
+                    "18:00"
+                )
+            }
 
             ${
                 config.voiceEnabled
+
                     ? "• 🔊"
+
                     : ""
             }
 
@@ -2250,9 +2554,13 @@ function renderReminderBadge(id) {
 }
 
 
-/* ========================= REMINDER TIME ========================= */
+/* =========================================================
+   REMINDER TIME
+========================================================= */
 
-function dateKey(date) {
+function dateKey(
+    date
+) {
 
     return (
 
@@ -2278,8 +2586,9 @@ function dateKey(date) {
     );
 }
 
-
-function timeKey(date) {
+function timeKey(
+    date
+) {
 
     return (
 
@@ -2301,218 +2610,316 @@ function timeKey(date) {
     );
 }
 
-
-function daysLeft(deadline) {
+function daysLeft(
+    deadline
+) {
 
     return Math.round(
+
         (
             parseTaskDate(
                 deadline
             )
+
             -
+
             startOfToday()
         )
+
         /
+
         86400000
     );
 }
 
-
 function shouldTrigger(
+
     mode,
+
     days,
+
     customDays = 0
+
 ) {
 
     if (
-        mode === "none" ||
-        days === null
+
+        mode ===
+            "none"
+
+        ||
+
+        days ===
+            null
+
     ) {
 
         return false;
     }
 
-
     if (
-        mode === "smart"
+        mode ===
+        "smart"
     ) {
 
         return (
-            days === 7 ||
-            days === 3 ||
-            days === 1 ||
+
+            days === 7
+
+            ||
+
+            days === 3
+
+            ||
+
+            days === 1
+
+            ||
+
             days === 0
         );
     }
 
-
     if (
-        mode === "one_day"
-    ) {
-
-        return days === 1;
-    }
-
-
-    if (
-        mode === "three_days"
-    ) {
-
-        return days === 3;
-    }
-
-
-    if (
-        mode === "one_week"
-    ) {
-
-        return days === 7;
-    }
-
-
-    if (
-        mode === "custom"
+        mode ===
+        "one_day"
     ) {
 
         return (
             days ===
-            Math.max(
-                0,
-                Number(customDays) || 0
-            )
+            1
         );
     }
 
+    if (
+        mode ===
+        "three_days"
+    ) {
+
+        return (
+            days ===
+            3
+        );
+    }
+
+    if (
+        mode ===
+        "one_week"
+    ) {
+
+        return (
+            days ===
+            7
+        );
+    }
+
+    if (
+        mode ===
+        "custom"
+    ) {
+
+        return (
+
+            days ===
+
+            Math.max(
+                0,
+                Number(
+                    customDays
+                )
+                ||
+                0
+            )
+        );
+    }
 
     return false;
 }
 
 
-/* ========================= REMINDER MESSAGES ========================= */
+/* =========================================================
+   REMINDER MESSAGE
+========================================================= */
 
 function buildReminderMessage(
+
     task,
+
     days,
+
     language
+
 ) {
 
     const name =
-        task.title ||
+        task.title
+
+        ||
+
         (
-            language === "ar"
+            language ===
+                "ar"
+
                 ? "مهمتك"
+
                 : "your task"
         );
 
 
+    /* =====================================================
+       ARABIC
+    ===================================================== */
+
     if (
-        language === "ar"
+        language ===
+        "ar"
     ) {
 
         if (
-            days > 0
+            days >
+            0
         ) {
 
             let daysText;
 
-
             if (
-                days === 1
+                days ===
+                1
             ) {
 
                 daysText =
                     "يوم واحد";
+            }
 
-            } else if (
-                days === 7
+            else if (
+                days ===
+                7
             ) {
 
                 daysText =
                     "أسبوع";
+            }
 
-            } else if (
-                days === 3
+            else if (
+                days ===
+                3
             ) {
 
                 daysText =
                     "ثلاثة أيام";
+            }
 
-            } else {
+            else {
 
                 daysText =
                     `${days} أيام`;
             }
 
-
             return (
-                `باقي ${daysText} على مهمة ${name}. ` +
+
+                `باقي ${daysText} على مهمة ${name}. `
+
+                +
+
                 `خطوة بسيطة اليوم بتسهّل عليك الكثير.`
             );
         }
 
-
         if (
-            days === 0
+            days ===
+            0
         ) {
 
             return (
-                `موعد مهمة ${name} اليوم. ` +
+
+                `موعد مهمة ${name} اليوم. `
+
+                +
+
                 `ركّز عليها وأنجزها بأفضل شكل.`
             );
         }
 
-
         return (
-            `مهمة ${name} ما زالت بانتظارك. ` +
+
+            `مهمة ${name} ما زالت بانتظارك. `
+
+            +
+
             `رتّب وقتك وارجع أنجزها.`
         );
     }
 
 
+    /* =====================================================
+       ENGLISH
+    ===================================================== */
+
     if (
-        days > 0
+        days >
+        0
     ) {
 
         const timeText =
-            days === 1
+
+            days ===
+                1
+
                 ? "1 day"
-                : days === 7
+
+                : days ===
+                    7
+
                     ? "1 week"
+
                     : `${days} days`;
 
-
         return (
-            `You have ${name} coming up in ${timeText}. ` +
+
+            `You have ${name} coming up in ${timeText}. `
+
+            +
+
             `A little progress today will make things easier.`
         );
     }
 
-
     if (
-        days === 0
+        days ===
+        0
     ) {
 
         return (
-            `${name} is due today. ` +
+
+            `${name} is due today. `
+
+            +
+
             `Stay focused and give it your best.`
         );
     }
 
-
     return (
-        `${name} is still waiting. ` +
+
+        `${name} is still waiting. `
+
+        +
+
         `Take a moment and get it back on track.`
     );
 }
 
 
-/* ========================= BROWSER NOTIFICATIONS ========================= */
+/* =========================================================
+   BROWSER NOTIFICATIONS
+========================================================= */
 
 async function enableTaskoraNotifications() {
 
     if (
         !(
-            "Notification" in
+            "Notification"
+            in
             window
         )
     ) {
@@ -2525,7 +2932,6 @@ async function enableTaskoraNotifications() {
         return;
     }
 
-
     if (
         !window.isSecureContext
     ) {
@@ -2537,7 +2943,6 @@ async function enableTaskoraNotifications() {
 
         return;
     }
-
 
     if (
         Notification.permission ===
@@ -2552,7 +2957,6 @@ async function enableTaskoraNotifications() {
         return;
     }
 
-
     if (
         Notification.permission ===
         "denied"
@@ -2566,14 +2970,11 @@ async function enableTaskoraNotifications() {
         return;
     }
 
-
     const permission =
         await Notification
             .requestPermission();
 
-
     updateNotificationStatus();
-
 
     showToast(
 
@@ -2593,18 +2994,19 @@ async function enableTaskoraNotifications() {
     );
 }
 
-
 function updateNotificationStatus() {
 
-    if (!notificationStatus) {
+    if (
+        !notificationStatus
+    ) {
 
         return;
     }
 
-
     if (
         !(
-            "Notification" in
+            "Notification"
+            in
             window
         )
     ) {
@@ -2614,7 +3016,6 @@ function updateNotificationStatus() {
 
         return;
     }
-
 
     if (
         !window.isSecureContext
@@ -2626,18 +3027,16 @@ function updateNotificationStatus() {
         return;
     }
 
-
     if (
         Notification.permission ===
         "granted"
     ) {
 
         notificationStatus.textContent =
-            "Notifications enabled ✓ Premium voice reminder is ready.";
+            "Notifications enabled ✓ Voice reminder is ready.";
 
         return;
     }
-
 
     if (
         Notification.permission ===
@@ -2650,48 +3049,60 @@ function updateNotificationStatus() {
         return;
     }
 
-
     notificationStatus.textContent =
         "Press Enable Notifications for browser alerts. Voice works while the planner is open.";
 }
 
-
 function showTaskNotification(
+
     task,
+
     message,
+
     days
+
 ) {
 
     if (
+
         !(
-            "Notification" in
+            "Notification"
+            in
             window
         )
+
         ||
+
         !window.isSecureContext
+
         ||
+
         Notification.permission !==
             "granted"
+
     ) {
 
         return;
     }
 
-
     const title =
-        days < 0
+
+        days <
+        0
 
             ? "Overdue"
 
-            : days === 0
+            : days ===
+                0
 
                 ? "Due Today"
 
                 : "Reminder";
 
-
     new Notification(
+
         title,
+
         {
             body:
                 message,
@@ -2706,7 +3117,9 @@ function showTaskNotification(
 }
 
 
-/* ========================= CHECK REMINDERS ========================= */
+/* =========================================================
+   CHECK REMINDERS
+========================================================= */
 
 function checkTaskoraReminders() {
 
@@ -2717,22 +3130,18 @@ function checkTaskoraReminders() {
         return;
     }
 
-
     const now =
         new Date();
-
 
     const today =
         dateKey(
             now
         );
 
-
     const currentTime =
         timeKey(
             now
         );
-
 
     allTasks.forEach(
         (task) => {
@@ -2745,52 +3154,56 @@ function checkTaskoraReminders() {
                 return;
             }
 
-
             const config =
                 getReminderConfig(
                     task.id
                 );
 
-
             if (
-                !config ||
+
+                !config
+
+                ||
+
                 config.mode ===
                     "none"
+
             ) {
 
                 return;
             }
 
-
             if (
+
                 currentTime <
+
                 (
                     config.time ||
                     "18:00"
                 )
+
             ) {
 
                 return;
             }
-
 
             const days =
                 daysLeft(
                     task.deadline
                 );
 
-
             if (
+
                 !shouldTrigger(
                     config.mode,
                     days,
                     config.customDays
                 )
+
             ) {
 
                 return;
             }
-
 
             const notificationKey =
                 [
@@ -2801,8 +3214,9 @@ function checkTaskoraReminders() {
                     config.customDays ?? "",
                     days
                 ]
-                    .join("|");
-
+                    .join(
+                        "|"
+                    );
 
             if (
                 config.lastNotifiedKey ===
@@ -2812,7 +3226,6 @@ function checkTaskoraReminders() {
                 return;
             }
 
-
             const message =
                 buildReminderMessage(
                     task,
@@ -2820,22 +3233,23 @@ function checkTaskoraReminders() {
                     config.language
                 );
 
-
             showToast(
+
                 message,
 
-                days < 0
+                days <
+                0
+
                     ? "warning"
+
                     : "info"
             );
-
 
             showTaskNotification(
                 task,
                 message,
                 days
             );
-
 
             if (
                 config.voiceEnabled
@@ -2846,14 +3260,12 @@ function checkTaskoraReminders() {
                     config.language,
                     false,
                     config.voiceStyle ||
-                        "premium"
+                    "premium"
                 );
             }
 
-
             const store =
                 loadReminderStore();
-
 
             if (
                 store[
@@ -2867,9 +3279,9 @@ function checkTaskoraReminders() {
                     String(
                         task.id
                     )
-                ].lastNotifiedKey =
+                ]
+                    .lastNotifiedKey =
                     notificationKey;
-
 
                 writeReminderStore(
                     store
@@ -2880,39 +3292,38 @@ function checkTaskoraReminders() {
 }
 
 
-/* ========================= REMINDER EVENTS ========================= */
+/* =========================================================
+   REMINDER EVENTS
+========================================================= */
 
-reminderMode?.addEventListener(
-    "change",
-    updateReminderControls
-);
+reminderMode
+    ?.addEventListener(
+        "change",
+        updateReminderControls
+    );
 
+voiceEnabled
+    ?.addEventListener(
+        "change",
+        updateReminderControls
+    );
 
-voiceEnabled?.addEventListener(
-    "change",
-    updateReminderControls
-);
+voiceLanguage
+    ?.addEventListener(
+        "change",
+        () => {
 
+            populateVoiceSelector();
 
-voiceLanguage?.addEventListener(
-    "change",
-    () => {
+            updateReminderControls();
+        }
+    );
 
-        populateVoiceSelector();
-
-        updateReminderControls();
-    }
-);
-
-
-voiceStyle?.addEventListener(
-    "change",
-    () => {
-
-        populateVoiceSelector();
-    }
-);
-
+voiceStyle
+    ?.addEventListener(
+        "change",
+        populateVoiceSelector
+    );
 
 requestNotificationBtn
     ?.addEventListener(
@@ -2921,200 +3332,283 @@ requestNotificationBtn
     );
 
 
-/* ========================= TEST VOICE ========================= */
+/* =========================================================
+   TEST VOICE
+========================================================= */
 
-testVoiceBtn?.addEventListener(
-    "click",
-    () => {
+testVoiceBtn
+    ?.addEventListener(
+        "click",
+        () => {
 
-        const language =
-            voiceLanguage?.value === "ar"
-                ? "ar"
-                : "en";
+            const language =
 
+                voiceLanguage?.value ===
+                    "ar"
 
-        const title =
-            document
-                .getElementById(
-                    "title"
-                )
-                .value
-                .trim();
+                    ? "ar"
 
+                    : "en";
 
-        const name =
-            title ||
-            (
-                language === "ar"
-                    ? "مهمتك"
-                    : "your task"
-            );
-
-
-        const mode =
-            reminderMode?.value ||
-            "smart";
-
-
-        /*
-           Test Voice follows the selected
-           reminder duration automatically.
-        */
-
-        if (
-            mode === "smart"
-        ) {
-
-            const smartMessage =
-                language === "ar"
-
-                    ? (
-                        `تم تفعيل التذكير الذكي لمهمة ${name}. ` +
-                        `سيتم تذكيرك قبل أسبوع، وقبل ثلاثة أيام، وقبل يوم واحد، وفي يوم التسليم.`
+            const title =
+                document
+                    .getElementById(
+                        "title"
                     )
+                    .value
+                    .trim();
 
-                    : (
-                        `Smart reminder is active for ${name}. ` +
-                        `You will be reminded one week before, three days before, one day before, and on the due date.`
-                    );
+            const name =
 
+                title
 
-            speakReminder(
-                smartMessage,
-                language,
-                true,
-                voiceStyle?.value ||
-                    "premium"
-            );
+                ||
 
+                (
+                    language ===
+                        "ar"
 
-            showToast(
-                language === "ar"
-                    ? "يتم اختبار التذكير الذكي."
-                    : "Testing smart reminder.",
-                "info"
-            );
+                        ? "مهمتك"
 
-
-            return;
-        }
-
-
-        let testDays = 3;
-
-
-        if (
-            mode === "one_day"
-        ) {
-
-            testDays = 1;
-
-        } else if (
-            mode === "three_days"
-        ) {
-
-            testDays = 3;
-
-        } else if (
-            mode === "one_week"
-        ) {
-
-            testDays = 7;
-
-        } else if (
-            mode === "custom"
-        ) {
-
-            testDays =
-                Math.max(
-                    0,
-                    Number(
-                        customDaysInput?.value
-                    ) || 0
+                        : "your task"
                 );
 
-        } else if (
-            mode === "none"
-        ) {
+            const mode =
+                reminderMode?.value ||
+                "smart";
+
+
+            /* =====================================================
+               NO REMINDER
+            ===================================================== */
+
+            if (
+                mode ===
+                "none"
+            ) {
+
+                showToast(
+
+                    language ===
+                        "ar"
+
+                        ? "اختر نوع تذكير أولاً."
+
+                        : "Choose a reminder type first.",
+
+                    "warning"
+                );
+
+                return;
+            }
+
+
+            /* =====================================================
+               SMART REMINDER
+            ===================================================== */
+
+            if (
+                mode ===
+                "smart"
+            ) {
+
+                const smartMessage =
+
+                    language ===
+                        "ar"
+
+                        ? (
+
+                            `تم تفعيل التذكير الذكي لمهمة ${name}. `
+
+                            +
+
+                            `سيتم تذكيرك قبل أسبوع، وقبل ثلاثة أيام، وقبل يوم واحد، وفي يوم التسليم.`
+                        )
+
+                        : (
+
+                            `Smart reminder is active for ${name}. `
+
+                            +
+
+                            `You will be reminded one week before, three days before, one day before, and on the due date.`
+                        );
+
+                speakReminder(
+
+                    smartMessage,
+
+                    language,
+
+                    true,
+
+                    voiceStyle?.value ||
+                    "premium"
+                );
+
+                showToast(
+
+                    language ===
+                        "ar"
+
+                        ? "يتم اختبار التذكير الذكي."
+
+                        : "Testing smart reminder.",
+
+                    "info"
+                );
+
+                return;
+            }
+
+
+            /* =====================================================
+               SELECTED REMINDER MODE
+            ===================================================== */
+
+            let testDays =
+                3;
+
+            if (
+                mode ===
+                "one_day"
+            ) {
+
+                testDays =
+                    1;
+            }
+
+            else if (
+                mode ===
+                "three_days"
+            ) {
+
+                testDays =
+                    3;
+            }
+
+            else if (
+                mode ===
+                "one_week"
+            ) {
+
+                testDays =
+                    7;
+            }
+
+            else if (
+                mode ===
+                "custom"
+            ) {
+
+                testDays =
+                    Math.max(
+
+                        0,
+
+                        Number(
+                            customDaysInput?.value
+                        )
+
+                        ||
+
+                        0
+                    );
+            }
+
+            const message =
+                buildReminderMessage(
+
+                    {
+                        title:
+                            name
+                    },
+
+                    testDays,
+
+                    language
+                );
+
+            speakReminder(
+
+                message,
+
+                language,
+
+                true,
+
+                voiceStyle?.value ||
+                "premium"
+            );
 
             showToast(
-                language === "ar"
-                    ? "اختر نوع تذكير أولاً."
-                    : "Choose a reminder type first.",
-                "warning"
-            );
 
-            return;
+                language ===
+                    "ar"
+
+                    ? "يتم اختبار صوت التذكير."
+
+                    : "Testing reminder voice.",
+
+                "info"
+            );
         }
+    );
 
 
-        const testTask = {
-            title: name
-        };
-
-
-        const message =
-            buildReminderMessage(
-                testTask,
-                testDays,
-                language
-            );
-
-
-        speakReminder(
-            message,
-            language,
-            true,
-            voiceStyle?.value ||
-                "premium"
-        );
-
-
-        showToast(
-            language === "ar"
-                ? "يتم اختبار صوت التذكير."
-                : "Testing reminder voice.",
-            "info"
-        );
-    }
-);
-
-
-/* ========================= LOAD VOICES ========================= */
+/* =========================================================
+   LOAD VOICES
+========================================================= */
 
 if (
-    "speechSynthesis" in
+    "speechSynthesis"
+    in
     window
 ) {
 
     window
         .speechSynthesis
         .addEventListener(
+
             "voiceschanged",
+
             populateVoiceSelector
         );
 
-
     setTimeout(
+
         populateVoiceSelector,
+
         300
     );
-}
 
+    setTimeout(
+
+        populateVoiceSelector,
+
+        1000
+    );
+}
 
 populateVoiceSelector();
 
 
-/* ========================= AUTO CHECKS ========================= */
+/* =========================================================
+   AUTO REMINDER CHECKS
+========================================================= */
 
 window.addEventListener(
+
     "focus",
+
     checkTaskoraReminders
 );
 
-
 document.addEventListener(
+
     "visibilitychange",
+
     () => {
 
         if (
@@ -3122,38 +3616,50 @@ document.addEventListener(
             "visible"
         ) {
 
+            populateVoiceSelector();
+
             checkTaskoraReminders();
         }
     }
 );
 
-
 setInterval(
+
     checkTaskoraReminders,
+
     30000
 );
 
 
-/* ========================= NAVIGATION ========================= */
+/* =========================================================
+   NAVIGATION
+========================================================= */
 
-function setActiveNav(target) {
+function setActiveNav(
+    target
+) {
 
     navItems.forEach(
-        (item) =>
+        (item) => {
 
             item.classList.toggle(
+
                 "active",
+
                 item.dataset.target ===
-                    target
-            )
+                target
+            );
+        }
     );
 }
 
+function scrollToSection(
+    target
+) {
 
-function scrollToSection(target) {
-
-    setActiveNav(target);
-
+    setActiveNav(
+        target
+    );
 
     if (
         target ===
@@ -3162,14 +3668,16 @@ function scrollToSection(target) {
 
         window.scrollTo(
             {
-                top: 0,
-                behavior: "smooth"
+                top:
+                    0,
+
+                behavior:
+                    "smooth"
             }
         );
 
         return;
     }
-
 
     if (
         target ===
@@ -3179,14 +3687,16 @@ function scrollToSection(target) {
         tasksSection
             ?.scrollIntoView(
                 {
-                    behavior: "smooth",
-                    block: "start"
+                    behavior:
+                        "smooth",
+
+                    block:
+                        "start"
                 }
             );
 
         return;
     }
-
 
     if (
         target ===
@@ -3196,30 +3706,37 @@ function scrollToSection(target) {
         prioritySection
             ?.scrollIntoView(
                 {
-                    behavior: "smooth",
-                    block: "center"
+                    behavior:
+                        "smooth",
+
+                    block:
+                        "center"
                 }
             );
     }
 }
 
-
 navItems.forEach(
     (item) => {
 
         item.addEventListener(
+
             "click",
-            () =>
+
+            () => {
 
                 scrollToSection(
                     item.dataset.target
-                )
+                );
+            }
         );
     }
 );
 
 
-/* ========================= START ========================= */
+/* =========================================================
+   START
+========================================================= */
 
 updateReminderControls();
 
