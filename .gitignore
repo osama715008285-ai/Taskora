@@ -1,8 +1,44 @@
+# Python
 __pycache__/
 *.pyc
-Taskora_Final/
-Taskora_Final.zip
-.env
+*.pyo
+*.pyd
+
+# Virtual environments
 .venv/
 venv/
-taskora.db
+env/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+secrets.*
+config.local.*
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Private keys / certificates
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Logs
+*.log
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local Flask instance data
+instance/
+
+# ZIP / local copies
+Taskora_Final/
+Taskora_Final.zip
