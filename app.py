@@ -1,0 +1,536 @@
+from flask import Flask, render_template, request, jsonify
+import sqlite3
+from datetime import datetime
+
+app = Flask(__name__)
+
+DB_NAME = "taskora.db"
+
+
+# =========================
+# DATABASE
+# =========================
+
+def get_db():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    conn = get_db()
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            deadline TEXT NOT NULL,
+            importance INTEGER NOT NULL,
+            difficulty INTEGER NOT NULL,
+            hours REAL NOT NULL,
+            completed INTEGER DEFAULT 0,
+            priority_score INTEGER DEFAULT 0
+        )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
+# =========================
+# PRIORITY ALGORITHM
+# =========================
+
+def calculate_priority(deadline, importance, difficulty, hours):
+    deadline_date = datetime.strptime(
+        deadline,
+        "%Y-%m-%d"
+    ).date()
+
+    today = datetime.now().date()
+
+    days_left = (
+        deadline_date - today
+    ).days
+
+    if days_left <= 0:
+        deadline_score = 40
+
+    elif days_left == 1:
+        deadline_score = 35
+
+    elif days_left <= 3:
+        deadline_score = 25
+
+    elif days_left <= 7:
+        deadline_score = 15
+
+    else:
+        deadline_score = 5
+
+    score = (
+        importance * 8
+        + difficulty * 4
+        + deadline_score
+        + min(int(hours * 2), 10)
+    )
+
+    return min(score, 100)
+
+
+# =========================
+# HOME
+# =========================
+
+@app.route("/")
+def home():
+    return render_template("index.html")
+
+
+# =========================
+# GET TASKS
+# =========================
+
+@app.route("/api/tasks", methods=["GET"])
+def get_tasks():
+    conn = get_db()
+
+    tasks = conn.execute("""
+        SELECT *
+        FROM tasks
+        ORDER BY
+            completed ASC,
+            priority_score DESC
+    """).fetchall()
+
+    conn.close()
+
+    return jsonify([
+        dict(task)
+        for task in tasks
+    ])
+
+
+# =========================
+# ADD TASK
+# =========================
+
+@app.route("/api/tasks", methods=["POST"])
+def add_task():
+    data = request.get_json()
+
+    if not data:
+        return jsonify({
+            "error": "Invalid request"
+        }), 400
+
+    title = data.get(
+        "title",
+        ""
+    ).strip()
+
+    deadline = data.get(
+        "deadline"
+    )
+
+    try:
+        importance = int(
+            data.get(
+                "importance",
+                3
+            )
+        )
+
+        difficulty = int(
+            data.get(
+                "difficulty",
+                3
+            )
+        )
+
+        hours = float(
+            data.get(
+                "hours",
+                1
+            )
+        )
+
+    except (ValueError, TypeError):
+        return jsonify({
+            "error": "Invalid numeric values"
+        }), 400
+
+    if not title or not deadline:
+        return jsonify({
+            "error": "Title and deadline are required"
+        }), 400
+
+    if importance < 1 or importance > 5:
+        return jsonify({
+            "error": "Importance must be between 1 and 5"
+        }), 400
+
+    if difficulty < 1 or difficulty > 5:
+        return jsonify({
+            "error": "Difficulty must be between 1 and 5"
+        }), 400
+
+    if hours <= 0:
+        return jsonify({
+            "error": "Hours must be greater than 0"
+        }), 400
+
+    try:
+        score = calculate_priority(
+            deadline,
+            importance,
+            difficulty,
+            hours
+        )
+
+    except ValueError:
+        return jsonify({
+            "error": "Invalid deadline format"
+        }), 400
+
+    conn = get_db()
+
+    cursor = conn.execute("""
+        INSERT INTO tasks (
+            title,
+            deadline,
+            importance,
+            difficulty,
+            hours,
+            priority_score
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (
+        title,
+        deadline,
+        importance,
+        difficulty,
+        hours,
+        score
+    ))
+
+    conn.commit()
+
+    task_id = cursor.lastrowid
+
+    task = conn.execute(
+        """
+        SELECT *
+        FROM tasks
+        WHERE id = ?
+        """,
+        (task_id,)
+    ).fetchone()
+
+    conn.close()
+
+    return jsonify(
+        dict(task)
+    ), 201
+
+
+# =========================
+# EDIT TASK
+# =========================
+
+@app.route(
+    "/api/tasks/<int:task_id>",
+    methods=["PUT"]
+)
+def edit_task(task_id):
+    data = request.get_json()
+
+    if not data:
+        return jsonify({
+            "error": "Invalid request"
+        }), 400
+
+    title = data.get(
+        "title",
+        ""
+    ).strip()
+
+    deadline = data.get(
+        "deadline"
+    )
+
+    try:
+        importance = int(
+            data.get(
+                "importance",
+                3
+            )
+        )
+
+        difficulty = int(
+            data.get(
+                "difficulty",
+                3
+            )
+        )
+
+        hours = float(
+            data.get(
+                "hours",
+                1
+            )
+        )
+
+    except (ValueError, TypeError):
+        return jsonify({
+            "error": "Invalid numeric values"
+        }), 400
+
+    if not title or not deadline:
+        return jsonify({
+            "error": "Title and deadline are required"
+        }), 400
+
+    if importance < 1 or importance > 5:
+        return jsonify({
+            "error": "Importance must be between 1 and 5"
+        }), 400
+
+    if difficulty < 1 or difficulty > 5:
+        return jsonify({
+            "error": "Difficulty must be between 1 and 5"
+        }), 400
+
+    if hours <= 0:
+        return jsonify({
+            "error": "Hours must be greater than 0"
+        }), 400
+
+    try:
+        score = calculate_priority(
+            deadline,
+            importance,
+            difficulty,
+            hours
+        )
+
+    except ValueError:
+        return jsonify({
+            "error": "Invalid deadline format"
+        }), 400
+
+    conn = get_db()
+
+    task = conn.execute(
+        """
+        SELECT *
+        FROM tasks
+        WHERE id = ?
+        """,
+        (task_id,)
+    ).fetchone()
+
+    if not task:
+        conn.close()
+
+        return jsonify({
+            "error": "Task not found"
+        }), 404
+
+    conn.execute("""
+        UPDATE tasks
+        SET
+            title = ?,
+            deadline = ?,
+            importance = ?,
+            difficulty = ?,
+            hours = ?,
+            priority_score = ?
+        WHERE id = ?
+    """, (
+        title,
+        deadline,
+        importance,
+        difficulty,
+        hours,
+        score,
+        task_id
+    ))
+
+    conn.commit()
+
+    updated_task = conn.execute(
+        """
+        SELECT *
+        FROM tasks
+        WHERE id = ?
+        """,
+        (task_id,)
+    ).fetchone()
+
+    conn.close()
+
+    return jsonify(
+        dict(updated_task)
+    )
+
+
+# =========================
+# TOGGLE TASK
+# =========================
+
+@app.route(
+    "/api/tasks/<int:task_id>/toggle",
+    methods=["PUT"]
+)
+def toggle_task(task_id):
+    conn = get_db()
+
+    task = conn.execute(
+        """
+        SELECT completed
+        FROM tasks
+        WHERE id = ?
+        """,
+        (task_id,)
+    ).fetchone()
+
+    if not task:
+        conn.close()
+
+        return jsonify({
+            "error": "Task not found"
+        }), 404
+
+    new_status = (
+        0
+        if task["completed"]
+        else 1
+    )
+
+    conn.execute(
+        """
+        UPDATE tasks
+        SET completed = ?
+        WHERE id = ?
+        """,
+        (
+            new_status,
+            task_id
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "success": True,
+        "completed": new_status
+    })
+
+
+# =========================
+# DELETE TASK
+# =========================
+
+@app.route(
+    "/api/tasks/<int:task_id>",
+    methods=["DELETE"]
+)
+def delete_task(task_id):
+    conn = get_db()
+
+    task = conn.execute(
+        """
+        SELECT id
+        FROM tasks
+        WHERE id = ?
+        """,
+        (task_id,)
+    ).fetchone()
+
+    if not task:
+        conn.close()
+
+        return jsonify({
+            "error": "Task not found"
+        }), 404
+
+    conn.execute(
+        """
+        DELETE FROM tasks
+        WHERE id = ?
+        """,
+        (task_id,)
+    )
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "success": True
+    })
+
+
+# =========================
+# STATS API
+# =========================
+
+@app.route("/api/stats", methods=["GET"])
+def get_stats():
+    conn = get_db()
+
+    total = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM tasks
+        """
+    ).fetchone()[0]
+
+    completed = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM tasks
+        WHERE completed = 1
+        """
+    ).fetchone()[0]
+
+    urgent = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM tasks
+        WHERE priority_score >= 80
+        AND completed = 0
+        """
+    ).fetchone()[0]
+
+    conn.close()
+
+    productivity = (
+        0
+        if total == 0
+        else round(
+            (completed / total) * 100
+        )
+    )
+
+    return jsonify({
+        "total": total,
+        "completed": completed,
+        "urgent": urgent,
+        "productivity": productivity
+    })
+
+
+# =========================
+# START APP
+# =========================
+
+if __name__ == "__main__":
+    init_db()
+
+    app.run(
+        host="0.0.0.0",
+        port=5000,
+        debug=True
+    )

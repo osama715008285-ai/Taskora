@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+Taskora_Final/
+Taskora_Final.zip
+.env
+.venv/
+venv/
+taskora.db

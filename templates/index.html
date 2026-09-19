@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>
+    Taskora | Smart Student Planner
+  </title>
+
+  <link
+    rel="preconnect"
+    href="https://fonts.googleapis.com"
+  >
+
+  <link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+  >
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  >
+
+  <link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='style.css') }}?v=hero-photo-final-2"
+  >
+
+</head>
+
+<body>
+
+<div class="app">
+
+  <aside class="sidebar">
+
+    <div class="logo">
+
+      <div class="logo-icon">
+        T
+      </div>
+
+      <div>
+
+        <h2>
+          Taskora
+        </h2>
+
+        <span>
+          Student Planner
+        </span>
+
+      </div>
+
+    </div>
+
+
+    <nav>
+
+      <button
+        class="nav-item active"
+        data-target="dashboard"
+        type="button"
+      >
+
+        <span>
+          ⌂
+        </span>
+
+        Dashboard
+
+      </button>
+
+
+      <button
+        class="nav-item"
+        data-target="tasks"
+        type="button"
+      >
+
+        <span>
+          ✓
+        </span>
+
+        My Tasks
+
+      </button>
+
+
+      <button
+        class="nav-item"
+        data-target="priority"
+        type="button"
+      >
+
+        <span>
+          ⚡
+        </span>
+
+        Priority
+
+      </button>
+
+    </nav>
+
+
+    <div class="sidebar-footer">
+
+      <p>
+        SMART PRODUCTIVITY
+      </p>
+
+      <strong>
+        Plan smarter.
+        <br>
+        Finish faster.
+      </strong>
+
+    </div>
+
+  </aside>
+
+
+  <main class="main">
+
+
+    <!-- =====================================================
+         HERO
+    ====================================================== -->
+
+    <header
+      id="dashboardSection"
+      class="hero-shell"
+    >
+
+
+      <div class="hero-copy">
+
+
+        <p class="welcome">
+          SMART ACADEMIC PLANNER
+        </p>
+
+
+        <h1>
+          Focus on what
+          <span>
+            matters.
+          </span>
+        </h1>
+
+
+        <p class="subtitle">
+
+          Organize your academic tasks and let Taskora
+          calculate what deserves your attention first.
+
+        </p>
+
+
+        <div
+          class="hero-mantra"
+          aria-hidden="true"
+        >
+
+          <span>
+            Plan
+          </span>
+
+          <i></i>
+
+          <span>
+            Study
+          </span>
+
+          <i></i>
+
+          <span>
+            Achieve
+          </span>
+
+        </div>
+
+
+      </div>
+
+
+      <!-- HD IMAGE ON RIGHT -->
+
+      <div
+        class="hero-scene hero-photo"
+        aria-hidden="true"
+      >
+
+        <img
+          src="{{ url_for('static', filename='taskora-hero-bg.png') }}"
+          alt=""
+        >
+
+      </div>
+
+
+      <button
+        class="add-task-btn hero-add-btn"
+        onclick="openTaskModal()"
+        type="button"
+      >
+        + Add Task
+      </button>
+
+
+    </header>
+
+
+    <!-- =====================================================
+         STATS
+    ====================================================== -->
+
+    <section class="stats">
+
+
+      <div class="stat-card">
+
+        <div class="stat-icon">
+          📚
+        </div>
+
+        <div>
+
+          <p>
+            Total Tasks
+          </p>
+
+          <h2 id="totalTasks">
+            0
+          </h2>
+
+        </div>
+
+      </div>
+
+
+      <div class="stat-card">
+
+        <div class="stat-icon">
+          ✓
+        </div>
+
+        <div>
+
+          <p>
+            Completed
+          </p>
+
+          <h2 id="completedTasks">
+            0
+          </h2>
+
+        </div>
+
+      </div>
+
+
+      <div class="stat-card">
+
+        <div class="stat-icon">
+          ⚡
+        </div>
+
+        <div>
+
+          <p>
+            High Priority
+          </p>
+
+          <h2 id="urgentTasks">
+            0
+          </h2>
+
+        </div>
+
+      </div>
+
+
+      <div class="stat-card">
+
+        <div class="stat-icon">
+          ◎
+        </div>
+
+        <div>
+
+          <p>
+            Productivity
+          </p>
+
+          <h2 id="productivity">
+            0%
+          </h2>
+
+        </div>
+
+      </div>
+
+
+    </section>
+
+
+
+    <!-- =====================================================
+         PROGRESS
+    ====================================================== -->
+
+    <section class="progress-card">
+
+
+      <div class="progress-header">
+
+
+        <div>
+
+          <span class="progress-label">
+            YOUR PROGRESS
+          </span>
+
+          <h3>
+            Academic Productivity
+          </h3>
+
+        </div>
+
+
+        <strong id="progressText">
+          0%
+        </strong>
+
+
+      </div>
+
+
+      <div class="progress-track">
+
+        <div
+          class="progress-fill"
+          id="progressFill"
+        ></div>
+
+      </div>
+
+
+      <p id="progressMessage">
+        Complete tasks to build your momentum.
+      </p>
+
+
+    </section>
+
+
+
+    <!-- =====================================================
+         DEADLINE INSIGHTS
+    ====================================================== -->
+
+    <section class="deadline-insights">
+
+
+      <div class="insight-card">
+
+
+        <span class="insight-icon">
+          ◷
+        </span>
+
+
+        <div>
+
+          <p>
+            Due Today
+          </p>
+
+          <strong id="dueTodayCount">
+            0
+          </strong>
+
+        </div>
+
+
+      </div>
+
+
+
+      <div class="insight-card">
+
+
+        <span class="insight-icon overdue-icon">
+          !
+        </span>
+
+
+        <div>
+
+          <p>
+            Overdue
+          </p>
+
+          <strong id="overdueCount">
+            0
+          </strong>
+
+        </div>
+
+
+      </div>
+
+
+
+      <div class="insight-card">
+
+
+        <span class="insight-icon">
+          ○
+        </span>
+
+
+        <div>
+
+          <p>
+            Remaining
+          </p>
+
+          <strong id="remainingCount">
+            0
+          </strong>
+
+        </div>
+
+
+      </div>
+
+
+
+      <div class="insight-card next-deadline-card">
+
+
+        <div>
+
+          <p>
+            Next Deadline
+          </p>
+
+          <strong id="nextDeadline">
+            No upcoming tasks
+          </strong>
+
+        </div>
+
+
+      </div>
+
+
+    </section>
+
+
+
+    <!-- =====================================================
+         SMART FOCUS
+    ====================================================== -->
+
+    <section
+      class="smart-focus"
+      id="smartFocus"
+    >
+
+
+      <div class="focus-left">
+
+
+        <span class="focus-badge">
+          ⚡ SMART RECOMMENDATION
+        </span>
+
+
+        <h2>
+          What should I work on now?
+        </h2>
+
+
+        <p id="focusDescription">
+
+          Add tasks and Taskora will recommend
+          your most important task.
+
+        </p>
+
+
+      </div>
+
+
+
+      <div class="focus-score">
+
+
+        <span>
+          PRIORITY
+        </span>
+
+
+        <strong id="focusScore">
+          --
+        </strong>
+
+
+      </div>
+
+
+    </section>
+
+
+
+    <!-- =====================================================
+         TASKS
+    ====================================================== -->
+
+    <section
+      class="tasks-section"
+      id="tasksSection"
+    >
+
+
+      <div class="section-title">
+
+
+        <div>
+
+          <p>
+            TODAY'S FOCUS
+          </p>
+
+          <h2>
+            Your Priority Tasks
+          </h2>
+
+        </div>
+
+
+        <span>
+          Ranked automatically
+        </span>
+
+
+      </div>
+
+
+
+      <div class="task-toolbar">
+
+
+        <div class="search-box">
+
+
+          <span>
+            ⌕
+          </span>
+
+
+          <input
+            type="text"
+            id="taskSearch"
+            placeholder="Search tasks..."
+          >
+
+
+        </div>
+
+
+
+        <div class="filters">
+
+
+          <button
+            class="filter-btn active"
+            data-filter="all"
+            type="button"
+          >
+            All
+          </button>
+
+
+          <button
+            class="filter-btn"
+            data-filter="active"
+            type="button"
+          >
+            Active
+          </button>
+
+
+          <button
+            class="filter-btn"
+            data-filter="completed"
+            type="button"
+          >
+            Completed
+          </button>
+
+
+        </div>
+
+
+      </div>
+
+
+
+      <div
+        id="taskList"
+        class="task-list"
+      >
+
+
+        <div class="empty-state">
+
+
+          <div class="empty-icon">
+            ✓
+          </div>
+
+
+          <h3>
+            No tasks yet
+          </h3>
+
+
+          <p>
+
+            Add your first task and Taskora
+            will calculate its priority automatically.
+
+          </p>
+
+
+        </div>
+
+
+      </div>
+
+
+    </section>
+
+
+  </main>
+
+
+</div>
+
+
+
+<!-- =========================================================
+     TASK MODAL
+========================================================= -->
+
+<div
+  id="taskModal"
+  class="modal"
+>
+
+
+  <div class="modal-content">
+
+
+    <div class="modal-header">
+
+
+      <div>
+
+
+        <p>
+          NEW TASK
+        </p>
+
+
+        <h2>
+          Add Academic Task
+        </h2>
+
+
+      </div>
+
+
+
+      <button
+        class="close-btn"
+        onclick="closeTaskModal()"
+        type="button"
+      >
+        ×
+      </button>
+
+
+    </div>
+
+
+
+    <form id="taskForm">
+
+
+
+      <div class="input-group">
+
+
+        <label for="title">
+          Task Name
+        </label>
+
+
+        <input
+          id="title"
+          type="text"
+          placeholder="e.g. Machine Learning Report"
+          required
+        >
+
+
+      </div>
+
+
+
+      <div class="input-group">
+
+
+        <label for="deadline">
+          Deadline
+        </label>
+
+
+        <input
+          id="deadline"
+          type="date"
+          required
+        >
+
+
+      </div>
+
+
+
+      <div class="form-row">
+
+
+
+        <div class="input-group">
+
+
+          <label for="importance">
+            Importance
+          </label>
+
+
+          <select id="importance">
+
+
+            <option value="1">
+              1 - Very Low
+            </option>
+
+
+            <option value="2">
+              2 - Low
+            </option>
+
+
+            <option
+              value="3"
+              selected
+            >
+              3 - Medium
+            </option>
+
+
+            <option value="4">
+              4 - High
+            </option>
+
+
+            <option value="5">
+              5 - Critical
+            </option>
+
+
+          </select>
+
+
+        </div>
+
+
+
+        <div class="input-group">
+
+
+          <label for="difficulty">
+            Difficulty
+          </label>
+
+
+          <select id="difficulty">
+
+
+            <option value="1">
+              1 - Easy
+            </option>
+
+
+            <option value="2">
+              2 - Low
+            </option>
+
+
+            <option
+              value="3"
+              selected
+            >
+              3 - Medium
+            </option>
+
+
+            <option value="4">
+              4 - Hard
+            </option>
+
+
+            <option value="5">
+              5 - Very Hard
+            </option>
+
+
+          </select>
+
+
+        </div>
+
+
+      </div>
+
+
+
+      <div class="input-group">
+
+
+        <label for="hours">
+          Estimated Hours
+        </label>
+
+
+        <input
+          id="hours"
+          type="number"
+          min="0.5"
+          step="0.5"
+          value="1"
+          required
+        >
+
+
+      </div>
+
+
+
+      <!-- =====================================================
+           SMART REMINDER
+      ====================================================== -->
+
+      <div class="reminder-box">
+
+
+
+        <div class="reminder-box-head">
+
+
+          <div>
+
+
+            <span class="reminder-kicker">
+              🔔 SMART REMINDER
+            </span>
+
+
+            <h3>
+              Voice Reminder
+            </h3>
+
+
+            <p>
+
+              Choose when Taskora reminds you
+              and which voice it uses.
+
+            </p>
+
+
+          </div>
+
+
+
+          <span class="reminder-chip">
+            Voice + Alert
+          </span>
+
+
+        </div>
+
+
+
+        <div class="form-row">
+
+
+
+          <div class="input-group">
+
+
+            <label for="reminderMode">
+              Reminder
+            </label>
+
+
+            <select id="reminderMode">
+
+
+              <option
+                value="smart"
+                selected
+              >
+                ⭐ Smart Reminder
+              </option>
+
+
+              <option value="one_day">
+                1 Day Before
+              </option>
+
+
+              <option value="three_days">
+                3 Days Before
+              </option>
+
+
+              <option value="one_week">
+                1 Week Before
+              </option>
+
+
+              <option value="custom">
+                Custom
+              </option>
+
+
+              <option value="none">
+                No Reminder
+              </option>
+
+
+            </select>
+
+
+          </div>
+
+
+
+          <div class="input-group">
+
+
+            <label for="reminderTime">
+              Reminder Time
+            </label>
+
+
+            <input
+              id="reminderTime"
+              type="time"
+              value="18:00"
+            >
+
+
+          </div>
+
+
+        </div>
+
+
+
+        <div
+          class="input-group"
+          id="customDaysGroup"
+          hidden
+        >
+
+
+          <label for="customDays">
+            Custom Days Before
+          </label>
+
+
+          <input
+            id="customDays"
+            type="number"
+            min="0"
+            max="365"
+            step="1"
+            value="2"
+            placeholder="e.g. 2"
+          >
+
+
+        </div>
+
+
+
+        <div class="form-row">
+
+
+
+          <div class="input-group">
+
+
+            <label for="voiceStyle">
+              Voice Style
+            </label>
+
+
+            <select id="voiceStyle">
+
+
+              <option
+                value="premium"
+                selected
+              >
+                Premium / Natural
+              </option>
+
+
+              <option value="default">
+                Default
+              </option>
+
+
+            </select>
+
+
+          </div>
+
+
+
+          <div class="input-group">
+
+
+            <label for="voiceSelector">
+              Voice
+            </label>
+
+
+            <select id="voiceSelector">
+
+
+              <option value="fixed-ryan">
+                Microsoft Ryan Online (Natural) - English (UK)
+              </option>
+
+
+            </select>
+
+
+          </div>
+
+
+        </div>
+
+
+
+        <div class="voice-quality-note">
+
+          ✨ English: Microsoft Ryan (Natural)
+          • العربية: Microsoft Hamdan (Natural)
+
+        </div>
+
+
+
+        <div class="form-row">
+
+
+
+          <div class="input-group">
+
+
+            <label for="voiceLanguage">
+              Voice Language
+            </label>
+
+
+            <select id="voiceLanguage">
+
+
+              <option
+                value="en"
+                selected
+              >
+                English
+              </option>
+
+
+              <option value="ar">
+                العربية
+              </option>
+
+
+            </select>
+
+
+          </div>
+
+
+
+          <div class="input-group">
+
+
+            <label>
+              Voice Reminder
+            </label>
+
+
+            <label class="reminder-switch-wrap">
+
+
+              <input
+                id="voiceEnabled"
+                type="checkbox"
+                checked
+              >
+
+
+              <span class="reminder-switch">
+                <span></span>
+              </span>
+
+
+              <strong id="voiceStateText">
+                ON
+              </strong>
+
+
+            </label>
+
+
+          </div>
+
+
+        </div>
+
+
+
+        <div class="reminder-actions">
+
+
+          <button
+            id="requestNotificationBtn"
+            class="reminder-action-btn"
+            type="button"
+          >
+            🔔 Enable Notifications
+          </button>
+
+
+          <button
+            id="testVoiceBtn"
+            class="reminder-action-btn secondary"
+            type="button"
+          >
+            🔊 Test Voice
+          </button>
+
+
+        </div>
+
+
+
+        <p
+          class="reminder-status"
+          id="notificationStatus"
+        >
+          Voice reminders work while Taskora is open.
+        </p>
+
+
+      </div>
+
+
+
+      <button
+        type="submit"
+        class="create-task-btn"
+      >
+        Create Task
+      </button>
+
+
+    </form>
+
+
+  </div>
+
+
+</div>
+
+
+
+<script
+  src="{{ url_for('static', filename='script.js') }}?v=smart-reminder-1"
+></script>
+
+
+</body>
+
+</html>
