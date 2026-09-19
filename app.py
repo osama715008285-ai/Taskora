@@ -2,7 +2,7 @@ import os
 import sqlite3
 from datetime import datetime
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, jsonify, render_template, request
 
 try:
     import psycopg
@@ -30,13 +30,13 @@ def connect_db():
     if using_postgres():
         if psycopg is None:
             raise RuntimeError(
-                "PostgreSQL is configured, but psycopg is not installed."
+                "DATABASE_URL is set but psycopg is not installed."
             )
 
         return psycopg.connect(
             DATABASE_URL,
             row_factory=dict_row,
-            connect_timeout=10
+            connect_timeout=10,
         )
 
     conn = sqlite3.connect(
@@ -54,7 +54,8 @@ def init_db():
 
     try:
         if using_postgres():
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS tasks (
                     id SERIAL PRIMARY KEY,
                     title TEXT NOT NULL,
@@ -62,12 +63,15 @@ def init_db():
                     importance INTEGER NOT NULL,
                     difficulty INTEGER NOT NULL,
                     hours REAL NOT NULL,
-                    completed INTEGER DEFAULT 0,
-                    priority_score INTEGER DEFAULT 0
+                    completed INTEGER NOT NULL DEFAULT 0,
+                    priority_score INTEGER NOT NULL DEFAULT 0
                 )
-            """)
+                """
+            )
+
         else:
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS tasks (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     title TEXT NOT NULL,
@@ -75,10 +79,11 @@ def init_db():
                     importance INTEGER NOT NULL,
                     difficulty INTEGER NOT NULL,
                     hours REAL NOT NULL,
-                    completed INTEGER DEFAULT 0,
-                    priority_score INTEGER DEFAULT 0
+                    completed INTEGER NOT NULL DEFAULT 0,
+                    priority_score INTEGER NOT NULL DEFAULT 0
                 )
-            """)
+                """
+            )
 
         conn.commit()
 
@@ -89,12 +94,9 @@ def init_db():
 def ensure_db_initialized():
     global _db_initialized
 
-    if _db_initialized:
-        return
-
-    init_db()
-
-    _db_initialized = True
+    if not _db_initialized:
+        init_db()
+        _db_initialized = True
 
 
 def get_db():
@@ -105,13 +107,6 @@ def get_db():
 
 def placeholder():
     return "%s" if using_postgres() else "?"
-
-
-def row_to_dict(row):
-    if row is None:
-        return None
-
-    return dict(row)
 
 
 def calculate_priority(
@@ -166,9 +161,7 @@ def calculate_priority(
 def parse_task_payload(data):
     if not data:
         return None, (
-            jsonify({
-                "error": "Invalid request"
-            }),
+            "Invalid request",
             400
         )
 
@@ -210,46 +203,31 @@ def parse_task_payload(data):
         TypeError
     ):
         return None, (
-            jsonify({
-                "error":
-                    "Invalid numeric values"
-            }),
+            "Invalid numeric values",
             400
         )
 
     if not title or not deadline:
         return None, (
-            jsonify({
-                "error":
-                    "Title and deadline are required"
-            }),
+            "Title and deadline are required",
             400
         )
 
     if not 1 <= importance <= 5:
         return None, (
-            jsonify({
-                "error":
-                    "Importance must be between 1 and 5"
-            }),
+            "Importance must be between 1 and 5",
             400
         )
 
     if not 1 <= difficulty <= 5:
         return None, (
-            jsonify({
-                "error":
-                    "Difficulty must be between 1 and 5"
-            }),
+            "Difficulty must be between 1 and 5",
             400
         )
 
     if hours <= 0:
         return None, (
-            jsonify({
-                "error":
-                    "Hours must be greater than 0"
-            }),
+            "Hours must be greater than 0",
             400
         )
 
@@ -261,36 +239,19 @@ def parse_task_payload(data):
             hours
         )
 
-    except (
-        ValueError,
-        TypeError
-    ):
+    except ValueError:
         return None, (
-            jsonify({
-                "error":
-                    "Invalid deadline format"
-            }),
+            "Invalid deadline format",
             400
         )
 
     return {
-        "title":
-            title,
-
-        "deadline":
-            deadline,
-
-        "importance":
-            importance,
-
-        "difficulty":
-            difficulty,
-
-        "hours":
-            hours,
-
-        "priority_score":
-            score
+        "title": title,
+        "deadline": deadline,
+        "importance": importance,
+        "difficulty": difficulty,
+        "hours": hours,
+        "priority_score": score,
     }, None
 
 
@@ -306,21 +267,24 @@ def home():
     methods=["GET"]
 )
 def health():
-    return jsonify({
-        "status":
-            "ok",
+    return jsonify(
+        {
+            "status": "ok",
+            "database": (
+                "postgresql"
 
-        "database":
-            "postgresql"
-            if using_postgres()
+                if using_postgres()
 
-            else (
-                "sqlite-temporary"
-                if IS_VERCEL
+                else (
+                    "sqlite-temporary"
 
-                else "sqlite-local"
+                    if IS_VERCEL
+
+                    else "sqlite-local"
+                )
             )
-    })
+        }
+    )
 
 
 @app.route(
@@ -332,32 +296,38 @@ def get_tasks():
         conn = get_db()
 
         try:
-            tasks = conn.execute("""
+            rows = conn.execute(
+                """
                 SELECT *
                 FROM tasks
                 ORDER BY
                     completed ASC,
                     priority_score DESC,
                     id DESC
-            """).fetchall()
+                """
+            ).fetchall()
 
         finally:
             conn.close()
 
-        return jsonify([
-            row_to_dict(task)
-            for task in tasks
-        ])
+        return jsonify(
+            [
+                dict(row)
+                for row in rows
+            ]
+        )
 
     except Exception:
         app.logger.exception(
             "Unable to load tasks"
         )
 
-        return jsonify({
-            "error":
-                "Unable to load tasks from the database"
-        }), 500
+        return jsonify(
+            {
+                "error":
+                    "Unable to load tasks"
+            }
+        ), 500
 
 
 @app.route(
@@ -365,14 +335,21 @@ def get_tasks():
     methods=["POST"]
 )
 def add_task():
-    task_data, error_response = parse_task_payload(
+    payload, error = parse_task_payload(
         request.get_json(
             silent=True
         )
     )
 
-    if error_response:
-        return error_response
+    if error:
+        message, status = error
+
+        return jsonify(
+            {
+                "error":
+                    message
+            }
+        ), status
 
     try:
         conn = get_db()
@@ -380,7 +357,7 @@ def add_task():
 
         try:
             if using_postgres():
-                task = conn.execute(
+                row = conn.execute(
                     f"""
                     INSERT INTO tasks (
                         title,
@@ -391,23 +368,27 @@ def add_task():
                         priority_score
                     )
                     VALUES (
-                        {p}, {p}, {p},
-                        {p}, {p}, {p}
+                        {p},
+                        {p},
+                        {p},
+                        {p},
+                        {p},
+                        {p}
                     )
                     RETURNING *
                     """,
                     (
-                        task_data["title"],
-                        task_data["deadline"],
-                        task_data["importance"],
-                        task_data["difficulty"],
-                        task_data["hours"],
-                        task_data["priority_score"]
+                        payload["title"],
+                        payload["deadline"],
+                        payload["importance"],
+                        payload["difficulty"],
+                        payload["hours"],
+                        payload["priority_score"],
                     )
                 ).fetchone()
 
             else:
-                cursor = conn.execute(
+                cur = conn.execute(
                     """
                     INSERT INTO tasks (
                         title,
@@ -420,18 +401,18 @@ def add_task():
                     VALUES (?, ?, ?, ?, ?, ?)
                     """,
                     (
-                        task_data["title"],
-                        task_data["deadline"],
-                        task_data["importance"],
-                        task_data["difficulty"],
-                        task_data["hours"],
-                        task_data["priority_score"]
+                        payload["title"],
+                        payload["deadline"],
+                        payload["importance"],
+                        payload["difficulty"],
+                        payload["hours"],
+                        payload["priority_score"],
                     )
                 )
 
-                task_id = cursor.lastrowid
+                task_id = cur.lastrowid
 
-                task = conn.execute(
+                row = conn.execute(
                     """
                     SELECT *
                     FROM tasks
@@ -448,7 +429,7 @@ def add_task():
             conn.close()
 
         return jsonify(
-            row_to_dict(task)
+            dict(row)
         ), 201
 
     except Exception:
@@ -456,10 +437,12 @@ def add_task():
             "Unable to create task"
         )
 
-        return jsonify({
-            "error":
-                "Unable to save task"
-        }), 500
+        return jsonify(
+            {
+                "error":
+                    "Unable to save task"
+            }
+        ), 500
 
 
 @app.route(
@@ -467,21 +450,28 @@ def add_task():
     methods=["PUT"]
 )
 def edit_task(task_id):
-    task_data, error_response = parse_task_payload(
+    payload, error = parse_task_payload(
         request.get_json(
             silent=True
         )
     )
 
-    if error_response:
-        return error_response
+    if error:
+        message, status = error
+
+        return jsonify(
+            {
+                "error":
+                    message
+            }
+        ), status
 
     try:
         conn = get_db()
         p = placeholder()
 
         try:
-            task = conn.execute(
+            existing = conn.execute(
                 f"""
                 SELECT id
                 FROM tasks
@@ -492,11 +482,13 @@ def edit_task(task_id):
                 )
             ).fetchone()
 
-            if not task:
-                return jsonify({
-                    "error":
-                        "Task not found"
-                }), 404
+            if not existing:
+                return jsonify(
+                    {
+                        "error":
+                            "Task not found"
+                    }
+                ), 404
 
             conn.execute(
                 f"""
@@ -511,19 +503,19 @@ def edit_task(task_id):
                 WHERE id = {p}
                 """,
                 (
-                    task_data["title"],
-                    task_data["deadline"],
-                    task_data["importance"],
-                    task_data["difficulty"],
-                    task_data["hours"],
-                    task_data["priority_score"],
-                    task_id
+                    payload["title"],
+                    payload["deadline"],
+                    payload["importance"],
+                    payload["difficulty"],
+                    payload["hours"],
+                    payload["priority_score"],
+                    task_id,
                 )
             )
 
             conn.commit()
 
-            updated_task = conn.execute(
+            row = conn.execute(
                 f"""
                 SELECT *
                 FROM tasks
@@ -538,9 +530,7 @@ def edit_task(task_id):
             conn.close()
 
         return jsonify(
-            row_to_dict(
-                updated_task
-            )
+            dict(row)
         )
 
     except Exception:
@@ -548,10 +538,12 @@ def edit_task(task_id):
             "Unable to update task"
         )
 
-        return jsonify({
-            "error":
-                "Unable to update task"
-        }), 500
+        return jsonify(
+            {
+                "error":
+                    "Unable to update task"
+            }
+        ), 500
 
 
 @app.route(
@@ -564,7 +556,7 @@ def toggle_task(task_id):
         p = placeholder()
 
         try:
-            task = conn.execute(
+            row = conn.execute(
                 f"""
                 SELECT completed
                 FROM tasks
@@ -575,15 +567,17 @@ def toggle_task(task_id):
                 )
             ).fetchone()
 
-            if not task:
-                return jsonify({
-                    "error":
-                        "Task not found"
-                }), 404
+            if not row:
+                return jsonify(
+                    {
+                        "error":
+                            "Task not found"
+                    }
+                ), 404
 
             new_status = (
                 0
-                if task["completed"]
+                if row["completed"]
                 else 1
             )
 
@@ -595,7 +589,7 @@ def toggle_task(task_id):
                 """,
                 (
                     new_status,
-                    task_id
+                    task_id,
                 )
             )
 
@@ -604,23 +598,25 @@ def toggle_task(task_id):
         finally:
             conn.close()
 
-        return jsonify({
-            "success":
-                True,
-
-            "completed":
-                new_status
-        })
+        return jsonify(
+            {
+                "success": True,
+                "completed":
+                    new_status
+            }
+        )
 
     except Exception:
         app.logger.exception(
             "Unable to toggle task"
         )
 
-        return jsonify({
-            "error":
-                "Unable to update task"
-        }), 500
+        return jsonify(
+            {
+                "error":
+                    "Unable to update task"
+            }
+        ), 500
 
 
 @app.route(
@@ -633,7 +629,7 @@ def delete_task(task_id):
         p = placeholder()
 
         try:
-            task = conn.execute(
+            row = conn.execute(
                 f"""
                 SELECT id
                 FROM tasks
@@ -644,11 +640,13 @@ def delete_task(task_id):
                 )
             ).fetchone()
 
-            if not task:
-                return jsonify({
-                    "error":
-                        "Task not found"
-                }), 404
+            if not row:
+                return jsonify(
+                    {
+                        "error":
+                            "Task not found"
+                    }
+                ), 404
 
             conn.execute(
                 f"""
@@ -665,20 +663,24 @@ def delete_task(task_id):
         finally:
             conn.close()
 
-        return jsonify({
-            "success":
-                True
-        })
+        return jsonify(
+            {
+                "success":
+                    True
+            }
+        )
 
     except Exception:
         app.logger.exception(
             "Unable to delete task"
         )
 
-        return jsonify({
-            "error":
-                "Unable to delete task"
-        }), 500
+        return jsonify(
+            {
+                "error":
+                    "Unable to delete task"
+            }
+        ), 500
 
 
 @app.route(
@@ -690,47 +692,36 @@ def get_stats():
         conn = get_db()
 
         try:
-            total_row = conn.execute("""
+            total = conn.execute(
+                """
                 SELECT COUNT(*) AS count
                 FROM tasks
-            """).fetchone()
+                """
+            ).fetchone()["count"]
 
-            completed_row = conn.execute("""
+            completed = conn.execute(
+                """
                 SELECT COUNT(*) AS count
                 FROM tasks
                 WHERE completed = 1
-            """).fetchone()
+                """
+            ).fetchone()["count"]
 
-            urgent_row = conn.execute("""
+            urgent = conn.execute(
+                """
                 SELECT COUNT(*) AS count
                 FROM tasks
                 WHERE priority_score >= 80
                 AND completed = 0
-            """).fetchone()
+                """
+            ).fetchone()["count"]
 
         finally:
             conn.close()
 
-        total = int(
-            total_row[
-                "count"
-            ]
-        )
-
-        completed = int(
-            completed_row[
-                "count"
-            ]
-        )
-
-        urgent = int(
-            urgent_row[
-                "count"
-            ]
-        )
-
         productivity = (
             0
+
             if total == 0
 
             else round(
@@ -743,29 +734,33 @@ def get_stats():
             )
         )
 
-        return jsonify({
-            "total":
-                total,
+        return jsonify(
+            {
+                "total":
+                    int(total),
 
-            "completed":
-                completed,
+                "completed":
+                    int(completed),
 
-            "urgent":
-                urgent,
+                "urgent":
+                    int(urgent),
 
-            "productivity":
-                productivity
-        })
+                "productivity":
+                    productivity
+            }
+        )
 
     except Exception:
         app.logger.exception(
             "Unable to load stats"
         )
 
-        return jsonify({
-            "error":
-                "Unable to load statistics"
-        }), 500
+        return jsonify(
+            {
+                "error":
+                    "Unable to load statistics"
+            }
+        ), 500
 
 
 if __name__ == "__main__":
